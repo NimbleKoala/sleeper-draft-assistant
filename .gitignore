@@ -1,0 +1,23 @@
+# Dependencies
+node_modules/
+
+# Production Build Output
+dist/
+build/
+
+# Environment & Local Secrets
+.env
+.env.local
+.env.production
+
+# Temp & Scratch Files
+scratch/
+*.log
+.tempmediaStorage/
+*.png
+
+# IDE & OS Metadata
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
