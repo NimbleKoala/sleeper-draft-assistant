@@ -1,0 +1,17 @@
+version: '3.8'
+
+services:
+  sleeper-draft-assistant:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: sleeper-draft-assistant
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    environment:
+      - NODE_ENV=production
+      - PORT=3001
+      - RANKINGS_CSV_PATH=/app/rankings.csv
+    volumes:
+      - ./rankings.csv:/app/rankings.csv
