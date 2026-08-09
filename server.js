@@ -2,6 +2,10 @@ import express from 'express';
 import cors from 'cors';
 import fs from 'fs';
 import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = 3001;
@@ -9,7 +13,17 @@ const PORT = 3001;
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 
-const DEFAULT_CSV_PATH = 'D:/Downloads/Hayden_Winks_2026_PPR_Rankings.csv';
+// List of candidate paths to locate default rankings CSV dynamically
+function getCandidateCSVPaths() {
+  const userHome = process.env.USERPROFILE || process.env.HOME || '';
+  return [
+    process.env.RANKINGS_CSV_PATH,
+    path.join(__dirname, 'rankings.csv'),
+    path.join(__dirname, 'Hayden_Winks_2026_PPR_Rankings.csv'),
+    'D:/Downloads/Hayden_Winks_2026_PPR_Rankings.csv',
+    path.join(userHome, 'Downloads', 'Hayden_Winks_2026_PPR_Rankings.csv')
+  ].filter(Boolean);
+}
 
 // In-memory cache for Sleeper NFL Players (to avoid re-fetching 5MB file constantly)
 let sleeperPlayersCache = null;
@@ -17,7 +31,7 @@ let lastPlayersFetchTime = 0;
 
 // Current Active Rankings dataset
 let activeRankings = [];
-let activeRankingsSource = 'Hayden Winks 2026 PPR (Local File)';
+let activeRankingsSource = 'Hayden Winks 2026 PPR';
 
 // Normalize player names for resilient matching
 function normalizeName(name) {
@@ -65,19 +79,29 @@ function parseRankingsCSV(csvContent) {
   return parsed.sort((a, b) => a.rank - b.rank);
 }
 
-// Load default CSV on server start if available
+// Load default CSV on server start by scanning candidate paths
 function loadDefaultRankings() {
-  try {
-    if (fs.existsSync(DEFAULT_CSV_PATH)) {
-      const content = fs.readFileSync(DEFAULT_CSV_PATH, 'utf-8');
-      activeRankings = parseRankingsCSV(content);
-      activeRankingsSource = `Hayden Winks 2026 PPR Rankings (${activeRankings.length} players loaded)`;
-      console.log(`Loaded ${activeRankings.length} players from default CSV: ${DEFAULT_CSV_PATH}`);
-    } else {
-      console.warn(`Default CSV file not found at ${DEFAULT_CSV_PATH}`);
+  const candidatePaths = getCandidateCSVPaths();
+  let loaded = false;
+
+  for (const csvPath of candidatePaths) {
+    try {
+      if (fs.existsSync(csvPath)) {
+        const content = fs.readFileSync(csvPath, 'utf-8');
+        activeRankings = parseRankingsCSV(content);
+        const fileName = path.basename(csvPath);
+        activeRankingsSource = `Hayden Winks 2026 PPR (${activeRankings.length} players from ${fileName})`;
+        console.log(`Loaded ${activeRankings.length} players from CSV: ${csvPath}`);
+        loaded = true;
+        break;
+      }
+    } catch (err) {
+      console.warn(`Could not read CSV at ${csvPath}:`, err.message);
     }
-  } catch (err) {
-    console.error('Error reading default CSV:', err.message);
+  }
+
+  if (!loaded) {
+    console.warn(`No rankings CSV found in candidate paths. App will wait for custom CSV upload.`);
   }
 }
 
@@ -280,7 +304,7 @@ app.get('/api/sleeper/draft/:draftId/picks', async (req, res) => {
 
     // Map picked sleeper player IDs to normalized player names/IDs
     const pickedSleeperIds = new Set();
-    const pickedPlayerMap = {}; // sleeper_id -> pick object
+    const pickedPlayerMap = {};
 
     for (const pick of picks) {
       if (pick.player_id) {
