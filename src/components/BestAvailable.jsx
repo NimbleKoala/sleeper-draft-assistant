@@ -44,11 +44,15 @@ export default function BestAvailable({
     return map;
   }, [savedRankings]);
 
+  // Active sort ID helper
+  const activeSortId = useMemo(() => {
+    return activeSortKey.rankingId || selectedRankingIds[0] || 'default';
+  }, [activeSortKey, selectedRankingIds]);
+
   // Compute unified multi-ranking player list
   const combinedPlayerList = useMemo(() => {
     if (!rankings || rankings.length === 0) return [];
 
-    // Map normalized player name -> object with ranks across datasets
     const playerMap = new Map();
 
     // 1. First add primary rankings
@@ -70,7 +74,6 @@ export default function BestAvailable({
         if (playerMap.has(key)) {
           playerMap.get(key).ranks[id] = p.rank;
         } else {
-          // Player only present in secondary dataset
           playerMap.set(key, {
             ...p,
             ranks: { [id]: p.rank }
@@ -81,13 +84,12 @@ export default function BestAvailable({
 
     const list = Array.from(playerMap.values());
 
-    // 3. Sort by activeSortKey
-    const sortId = activeSortKey.rankingId || selectedRankingIds[0] || 'default';
+    // 3. Sort by activeSortId
     const isAsc = activeSortKey.direction !== 'desc';
 
     list.sort((a, b) => {
-      const rankA = a.ranks[sortId] ?? 999;
-      const rankB = b.ranks[sortId] ?? 999;
+      const rankA = a.ranks[activeSortId] ?? 999;
+      const rankB = b.ranks[activeSortId] ?? 999;
 
       if (rankA !== rankB) {
         return isAsc ? rankA - rankB : rankB - rankA;
@@ -96,13 +98,14 @@ export default function BestAvailable({
     });
 
     return list;
-  }, [rankings, activeDatasetsMap, selectedRankingIds, activeSortKey]);
+  }, [rankings, activeDatasetsMap, selectedRankingIds, activeSortId, activeSortKey]);
 
   // Count available players by position
   const posCounts = useMemo(() => {
     const counts = { ALL: 0, QB: 0, RB: 0, WR: 0, TE: 0, FLEX: 0, K: 0, DEF: 0 };
     combinedPlayerList.forEach(p => {
-      const isManual = manualDraftedIds.has(p.rank);
+      const primaryRank = p.ranks[selectedRankingIds[0]] || p.rank || 999;
+      const isManual = manualDraftedIds.has(primaryRank);
       const isPicked = p.isPicked || isManual;
       if (hidePicked && isPicked) return;
 
@@ -112,16 +115,17 @@ export default function BestAvailable({
       if (['RB', 'WR', 'TE'].includes(pos)) counts.FLEX++;
     });
     return counts;
-  }, [combinedPlayerList, hidePicked, manualDraftedIds]);
+  }, [combinedPlayerList, hidePicked, manualDraftedIds, selectedRankingIds]);
 
   // Filter player list
   const filteredPlayers = useMemo(() => {
     return combinedPlayerList.filter((player) => {
-      const isManualDrafted = manualDraftedIds.has(player.rank);
+      const primaryRank = player.ranks[selectedRankingIds[0]] || player.rank || 999;
+      const isManualDrafted = manualDraftedIds.has(primaryRank);
       const isDrafted = player.isPicked || isManualDrafted;
       if (hidePicked && isDrafted) return false;
 
-      if (starredOnly && !starredIds.has(player.rank)) return false;
+      if (starredOnly && !starredIds.has(primaryRank)) return false;
 
       const pos = (player.position || '').toUpperCase();
       if (selectedPos !== 'ALL') {
@@ -142,7 +146,7 @@ export default function BestAvailable({
 
       return true;
     });
-  }, [combinedPlayerList, selectedPos, searchQuery, hidePicked, manualDraftedIds, starredOnly, starredIds]);
+  }, [combinedPlayerList, selectedPos, searchQuery, hidePicked, manualDraftedIds, starredOnly, starredIds, selectedRankingIds]);
 
   return (
     <section className="glass-panel p-4 sm:p-5 mb-6 glass-panel-accent" aria-labelledby="best-available-heading">
@@ -163,7 +167,7 @@ export default function BestAvailable({
               </span>
             </div>
             <p className="text-[11px] sm:text-xs text-slate-400">
-              Comparing <span className="text-blue-300 font-semibold">{selectedRankingIds.length} active rankings</span> • Click column headers to sort
+              Comparing <span className="text-blue-300 font-semibold">{selectedRankingIds.length} active rankings</span> • Sorted by <span className="text-amber-300 font-bold">{datasetMetaMap[activeSortId]?.name || activeSortId}</span>
             </p>
           </div>
         </div>
@@ -289,7 +293,7 @@ export default function BestAvailable({
                 {/* Dynamically Render Header for Each Selected Ranking */}
                 {selectedRankingIds.map((id, index) => {
                   const meta = datasetMetaMap[id] || { name: id === 'default' ? 'Winks PPR' : `Rank ${index + 1}` };
-                  const isCurrentSort = (activeSortKey.rankingId || selectedRankingIds[0]) === id;
+                  const isCurrentSort = activeSortId === id;
 
                   return (
                     <th key={id} className="text-center py-3 px-2">
@@ -333,19 +337,24 @@ export default function BestAvailable({
                 </tr>
               ) : (
                 (() => {
-                  let currentTierNum = 0;
+                  const seenTiers = new Set();
                   const rows = [];
+                  const isAsc = activeSortKey.direction !== 'desc';
 
                   filteredPlayers.forEach((p) => {
-                    const primaryRank = p.rank || p.ranks[selectedRankingIds[0]] || 999;
+                    const activeRank = p.ranks[activeSortId] ?? p.rank ?? 999;
+                    const primaryRank = p.ranks[selectedRankingIds[0]] ?? p.rank ?? 999;
+
                     const isManual = manualDraftedIds.has(primaryRank);
                     const isPicked = p.isPicked || isManual;
                     const isStarred = starredIds.has(primaryRank);
-                    const tierInfo = calculateTier(primaryRank);
+                    
+                    // Calculate Tier based on the ACTIVE SORTED RANKING
+                    const tierInfo = calculateTier(activeRank);
 
-                    // Insert Tier Header row if tier changes and group-by-tiers is enabled
-                    if (groupByTiers && tierInfo.tier !== currentTierNum) {
-                      currentTierNum = tierInfo.tier;
+                    // Render Tier Header once per tier when grouping is enabled and sorting ascending
+                    if (groupByTiers && isAsc && !seenTiers.has(tierInfo.tier)) {
+                      seenTiers.add(tierInfo.tier);
                       rows.push(
                         <tr key={`tier-${tierInfo.tier}`}>
                           <td colSpan={6 + selectedRankingIds.length} className={`py-2 px-3 bg-gradient-to-r ${tierInfo.color} border-y text-xs font-extrabold uppercase tracking-wider`}>
@@ -387,7 +396,7 @@ export default function BestAvailable({
                         {/* Render Rank Badges for Each Selected Ranking */}
                         {selectedRankingIds.map((id) => {
                           const r = p.ranks[id];
-                          const isSortActive = (activeSortKey.rankingId || selectedRankingIds[0]) === id;
+                          const isSortActive = activeSortId === id;
 
                           return (
                             <td key={id} className="text-center py-2 px-2">
@@ -482,7 +491,7 @@ export default function BestAvailable({
         /* Cards View */
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 max-h-[650px] overflow-y-auto pr-1">
           {filteredPlayers.map((p) => {
-            const primaryRank = p.rank || p.ranks[selectedRankingIds[0]] || 999;
+            const primaryRank = p.ranks[selectedRankingIds[0]] || p.rank || 999;
             const isManual = manualDraftedIds.has(primaryRank);
             const isPicked = p.isPicked || isManual;
             const isStarred = starredIds.has(primaryRank);
@@ -503,7 +512,7 @@ export default function BestAvailable({
                         const r = p.ranks[id];
                         const meta = datasetMetaMap[id];
                         const label = meta ? meta.name.substring(0, 8) : id;
-                        const isSortActive = (activeSortKey.rankingId || selectedRankingIds[0]) === id;
+                        const isSortActive = activeSortId === id;
 
                         return r ? (
                           <span
