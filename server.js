@@ -13,7 +13,15 @@ const PORT = process.env.PORT || 3001;
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 
-// List of candidate paths to locate default rankings CSV dynamically
+// Server-side Rankings Directory & Manifest Setup
+const RANKINGS_DIR = path.join(__dirname, 'data', 'rankings');
+const MANIFEST_FILE = path.join(RANKINGS_DIR, 'manifest.json');
+
+if (!fs.existsSync(RANKINGS_DIR)) {
+  fs.mkdirSync(RANKINGS_DIR, { recursive: true });
+}
+
+// Candidate paths for default Hayden Winks rankings CSV
 function getCandidateCSVPaths() {
   const userHome = process.env.USERPROFILE || process.env.HOME || '';
   return [
@@ -25,13 +33,9 @@ function getCandidateCSVPaths() {
   ].filter(Boolean);
 }
 
-// In-memory cache for Sleeper NFL Players (to avoid re-fetching 5MB file constantly)
+// In-memory cache for Sleeper NFL Players
 let sleeperPlayersCache = null;
 let lastPlayersFetchTime = 0;
-
-// Current Active Rankings dataset
-let activeRankings = [];
-let activeRankingsSource = 'Hayden Winks 2026 PPR';
 
 // Normalize player names for resilient matching
 function normalizeName(name) {
@@ -79,38 +83,87 @@ function parseRankingsCSV(csvContent) {
   return parsed.sort((a, b) => a.rank - b.rank);
 }
 
-// Load default CSV on server start by scanning candidate paths
-function loadDefaultRankings() {
-  const candidatePaths = getCandidateCSVPaths();
-  let loaded = false;
-
-  for (const csvPath of candidatePaths) {
-    try {
-      if (fs.existsSync(csvPath)) {
-        const content = fs.readFileSync(csvPath, 'utf-8');
-        activeRankings = parseRankingsCSV(content);
-        const fileName = path.basename(csvPath);
-        activeRankingsSource = `Hayden Winks 2026 PPR (${activeRankings.length} players from ${fileName})`;
-        console.log(`Loaded ${activeRankings.length} players from CSV: ${csvPath}`);
-        loaded = true;
-        break;
-      }
-    } catch (err) {
-      console.warn(`Could not read CSV at ${csvPath}:`, err.message);
+// Manifest management for persistent saved rankings
+function readManifest() {
+  try {
+    if (fs.existsSync(MANIFEST_FILE)) {
+      return JSON.parse(fs.readFileSync(MANIFEST_FILE, 'utf-8'));
     }
+  } catch (err) {
+    console.warn('Error reading rankings manifest:', err.message);
   }
+  return [];
+}
 
-  if (!loaded) {
-    console.warn(`No rankings CSV found in candidate paths. App will wait for custom CSV upload.`);
+function writeManifest(manifest) {
+  try {
+    fs.writeFileSync(MANIFEST_FILE, JSON.stringify(manifest, null, 2), 'utf-8');
+  } catch (err) {
+    console.error('Error writing rankings manifest:', err.message);
   }
 }
 
-loadDefaultRankings();
+// Ensure default ranking dataset is copied to data/rankings/default.csv and indexed in manifest
+function initializeDefaultRankings() {
+  const defaultPath = path.join(RANKINGS_DIR, 'default.csv');
+  let content = null;
+  let sourceFileName = 'rankings.csv';
+
+  if (fs.existsSync(defaultPath)) {
+    content = fs.readFileSync(defaultPath, 'utf-8');
+  } else {
+    const candidatePaths = getCandidateCSVPaths();
+    for (const csvPath of candidatePaths) {
+      if (fs.existsSync(csvPath)) {
+        content = fs.readFileSync(csvPath, 'utf-8');
+        fs.writeFileSync(defaultPath, content, 'utf-8');
+        sourceFileName = path.basename(csvPath);
+        break;
+      }
+    }
+  }
+
+  let manifest = readManifest();
+  const hasDefault = manifest.some(item => item.id === 'default');
+
+  if (content && (!hasDefault || manifest.length === 0)) {
+    const parsed = parseRankingsCSV(content);
+    const defaultMeta = {
+      id: 'default',
+      filename: 'default.csv',
+      name: 'Hayden Winks PPR Consensus',
+      isDefault: true,
+      count: parsed.length,
+      updatedAt: new Date().toISOString()
+    };
+    manifest = [defaultMeta, ...manifest.filter(m => m.id !== 'default')];
+    writeManifest(manifest);
+    console.log(`Initialized default rankings dataset (${parsed.length} players).`);
+  }
+}
+
+initializeDefaultRankings();
+
+// Helper to load parsed dataset by ranking ID
+function getDatasetById(id) {
+  const manifest = readManifest();
+  const meta = manifest.find(m => m.id === id);
+  if (!meta) return null;
+
+  const filePath = path.join(RANKINGS_DIR, meta.filename);
+  if (!fs.existsSync(filePath)) return null;
+
+  const content = fs.readFileSync(filePath, 'utf-8');
+  const rankings = parseRankingsCSV(content);
+  return {
+    meta,
+    rankings
+  };
+}
 
 // Helper to fetch Sleeper NFL players dictionary
 async function getSleeperPlayers() {
   const NOW = Date.now();
-  // Cache for 12 hours
   if (sleeperPlayersCache && (NOW - lastPlayersFetchTime < 12 * 60 * 60 * 1000)) {
     return sleeperPlayersCache;
   }
@@ -128,7 +181,6 @@ async function getSleeperPlayers() {
     byNormalizedNameAndPos: {}
   };
 
-  // Build fast lookup indexes
   for (const [id, p] of Object.entries(rawPlayers)) {
     const fullName = p.full_name || `${p.first_name || ''} ${p.last_name || ''}`.trim();
     if (!fullName) continue;
@@ -153,19 +205,28 @@ async function getSleeperPlayers() {
 
 // REST ENDPOINTS
 
-// 1. Get current rankings
+// 1. List all available saved rankings on server
 app.get('/api/rankings', (req, res) => {
+  const manifest = readManifest();
   res.json({
-    source: activeRankingsSource,
-    count: activeRankings.length,
-    rankings: activeRankings
+    count: manifest.length,
+    rankings: manifest
   });
 });
 
-// 2. Custom CSV Upload / Paste
+// 2. Fetch specific dataset by ID
+app.get('/api/rankings/dataset/:id', (req, res) => {
+  const dataset = getDatasetById(req.params.id);
+  if (!dataset) {
+    return res.status(404).json({ error: 'Rankings dataset not found' });
+  }
+  res.json(dataset);
+});
+
+// 3. Upload & save a new CSV dataset to server
 app.post('/api/rankings/upload', (req, res) => {
   try {
-    const { csvContent, sourceName } = req.body;
+    const { csvContent, name } = req.body;
     if (!csvContent) {
       return res.status(400).json({ error: 'csvContent is required' });
     }
@@ -175,27 +236,67 @@ app.post('/api/rankings/upload', (req, res) => {
       return res.status(400).json({ error: 'Failed to parse any players from CSV' });
     }
 
-    activeRankings = parsed;
-    activeRankingsSource = sourceName || `Custom Upload (${parsed.length} players)`;
-    res.json({
-      message: 'Rankings updated successfully',
-      source: activeRankingsSource,
+    const cleanName = (name || 'Custom Ranking').trim();
+    const id = 'custom_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7);
+    const filename = `${id}.csv`;
+    const filePath = path.join(RANKINGS_DIR, filename);
+
+    fs.writeFileSync(filePath, csvContent, 'utf-8');
+
+    const meta = {
+      id,
+      filename,
+      name: cleanName,
+      isDefault: false,
       count: parsed.length,
-      rankings: parsed
+      updatedAt: new Date().toISOString()
+    };
+
+    const manifest = readManifest();
+    manifest.push(meta);
+    writeManifest(manifest);
+
+    res.json({
+      message: 'Rankings dataset saved successfully',
+      meta,
+      rankings: parsed,
+      allManifest: manifest
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// 3. Reload default CSV
-app.post('/api/rankings/reload-default', (req, res) => {
-  loadDefaultRankings();
-  res.json({
-    source: activeRankingsSource,
-    count: activeRankings.length,
-    rankings: activeRankings
-  });
+// 4. Delete a custom saved dataset from server
+app.delete('/api/rankings/:id', (req, res) => {
+  try {
+    const { id } = req.params;
+    if (id === 'default') {
+      return res.status(400).json({ error: 'Cannot delete default ranking dataset' });
+    }
+
+    let manifest = readManifest();
+    const meta = manifest.find(m => m.id === id);
+    if (!meta) {
+      return res.status(404).json({ error: 'Ranking dataset not found' });
+    }
+
+    const filePath = path.join(RANKINGS_DIR, meta.filename);
+    if (fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
+    }
+
+    manifest = manifest.filter(m => m.id !== id);
+    writeManifest(manifest);
+
+    res.json({
+      message: 'Rankings dataset deleted successfully',
+      id,
+      allManifest: manifest
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // 4. Sleeper User Lookup
@@ -289,10 +390,12 @@ app.get('/api/sleeper/draft/:draftId', async (req, res) => {
   }
 });
 
-// 7. Sleeper Draft Picks & Available Players calculation
+// 7. Sleeper Draft Picks & Available Players calculation (Supports Multi-Rankings)
 app.get('/api/sleeper/draft/:draftId/picks', async (req, res) => {
   try {
     const { draftId } = req.params;
+    const requestedIds = (req.query.ids || req.query.rankingId || 'default').split(',').map(id => id.trim()).filter(Boolean);
+
     const response = await fetch(`https://api.sleeper.app/v1/draft/${draftId}/picks`);
     if (!response.ok) {
       return res.status(response.status).json({ error: 'Failed to fetch draft picks' });
@@ -302,7 +405,7 @@ app.get('/api/sleeper/draft/:draftId/picks', async (req, res) => {
     // Ensure player index is loaded
     const playerIndex = await getSleeperPlayers();
 
-    // Map picked sleeper player IDs to normalized player names/IDs
+    // Map picked sleeper player IDs
     const pickedSleeperIds = new Set();
     const pickedPlayerMap = {};
 
@@ -313,46 +416,63 @@ app.get('/api/sleeper/draft/:draftId/picks', async (req, res) => {
       }
     }
 
-    // Match ranking entries with Sleeper player records
-    const processedRankings = activeRankings.map(item => {
-      const normName = item.normalizedName;
-      const pos = item.position.toUpperCase();
+    const datasetsMap = {};
+    let primaryRankings = [];
 
-      // Find match in Sleeper index
-      const sleeperMatch = playerIndex.byNormalizedNameAndPos[`${normName}_${pos}`] ||
-                           playerIndex.byNormalizedName[normName];
+    for (let index = 0; index < requestedIds.length; index++) {
+      const id = requestedIds[index];
+      const dataset = getDatasetById(id) || getDatasetById('default');
+      if (!dataset) continue;
 
-      const sleeperId = sleeperMatch ? sleeperMatch.player_id : null;
-      let isPicked = false;
-      let pickInfo = null;
+      const processed = dataset.rankings.map(item => {
+        const normName = item.normalizedName;
+        const pos = item.position.toUpperCase();
 
-      if (sleeperId && pickedSleeperIds.has(sleeperId)) {
-        isPicked = true;
-        pickInfo = pickedPlayerMap[sleeperId];
-      }
+        const sleeperMatch = playerIndex.byNormalizedNameAndPos[`${normName}_${pos}`] ||
+                             playerIndex.byNormalizedName[normName];
 
-      return {
-        ...item,
-        sleeperId,
-        sleeperDetails: sleeperMatch ? {
-          fullName: sleeperMatch.full_name || item.player,
-          team: sleeperMatch.team || item.team,
-          position: sleeperMatch.position || item.position,
-          age: sleeperMatch.age,
-          yearsExp: sleeperMatch.years_exp,
-          status: sleeperMatch.status,
-          injuryStatus: sleeperMatch.injury_status
-        } : null,
-        isPicked,
-        pickInfo
+        const sleeperId = sleeperMatch ? sleeperMatch.player_id : null;
+        let isPicked = false;
+        let pickInfo = null;
+
+        if (sleeperId && pickedSleeperIds.has(sleeperId)) {
+          isPicked = true;
+          pickInfo = pickedPlayerMap[sleeperId];
+        }
+
+        return {
+          ...item,
+          sleeperId,
+          sleeperDetails: sleeperMatch ? {
+            fullName: sleeperMatch.full_name || item.player,
+            team: sleeperMatch.team || item.team,
+            position: sleeperMatch.position || item.position,
+            age: sleeperMatch.age,
+            yearsExp: sleeperMatch.years_exp,
+            status: sleeperMatch.status,
+            injuryStatus: sleeperMatch.injury_status
+          } : null,
+          isPicked,
+          pickInfo
+        };
+      });
+
+      datasetsMap[id] = {
+        meta: dataset.meta,
+        rankingsWithDraftStatus: processed
       };
-    });
+
+      if (index === 0) {
+        primaryRankings = processed;
+      }
+    }
 
     res.json({
       draftId,
       totalPicksCount: picks.length,
       picks,
-      rankingsWithDraftStatus: processedRankings
+      rankingsWithDraftStatus: primaryRankings,
+      datasetsMap
     });
   } catch (err) {
     console.error('Error fetching picks:', err);

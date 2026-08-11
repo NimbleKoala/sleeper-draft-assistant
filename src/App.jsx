@@ -8,15 +8,20 @@ import RankingsManagerModal from './components/RankingsManagerModal';
 import { AlertCircle, CheckCircle, Info } from 'lucide-react';
 
 export default function App() {
+  const [savedRankings, setSavedRankings] = useState([]);
+  const [selectedRankingIds, setSelectedRankingIds] = useState(['default']);
+  const [activeDatasetsMap, setActiveDatasetsMap] = useState({});
   const [rankingsInfo, setRankingsInfo] = useState({ source: '', count: 0 });
   const [rankings, setRankings] = useState([]);
+  const [activeSortKey, setActiveSortKey] = useState({ rankingId: 'default', direction: 'asc' });
+
   const [draftInfo, setDraftInfo] = useState(null);
   const [picks, setPicks] = useState([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [lastRefreshed, setLastRefreshed] = useState(null);
   const [isDemoMode, setIsDemoMode] = useState(false);
 
-  // Manual override toggles for player ranks & Wishlist starring
+  // Manual override toggles & Wishlist starring
   const [manualDraftedIds, setManualDraftedIds] = useState(new Set());
   const [starredIds, setStarredIds] = useState(new Set());
 
@@ -30,33 +35,71 @@ export default function App() {
     setTimeout(() => setNotification(null), 3500);
   };
 
-  // Fetch Rankings on initial mount
-  const loadRankings = async () => {
+  // Fetch list of all saved rankings on server
+  const loadSavedRankingsList = useCallback(async () => {
     try {
       const res = await fetch('/api/rankings');
       const data = await res.json();
-      setRankingsInfo({ source: data.source, count: data.count });
-      setRankings(data.rankings || []);
+      setSavedRankings(data.rankings || []);
     } catch (err) {
-      console.error('Failed to load rankings:', err);
+      console.error('Failed to load saved rankings list:', err);
     }
-  };
-
-  useEffect(() => {
-    loadRankings();
   }, []);
 
-  // Sync / Refresh Picks from Sleeper API
-  const handleRefreshPicks = useCallback(async (currentDraft = draftInfo) => {
+  // Fetch parsed dataset for selected ranking IDs
+  const loadActiveDatasets = useCallback(async (ids = selectedRankingIds) => {
+    try {
+      const map = {};
+      let primaryData = null;
+
+      for (let i = 0; i < ids.length; i++) {
+        const id = ids[i];
+        const res = await fetch(`/api/rankings/dataset/${encodeURIComponent(id)}`);
+        if (res.ok) {
+          const dataset = await res.json();
+          map[id] = {
+            meta: dataset.meta,
+            rankingsWithDraftStatus: dataset.rankings
+          };
+          if (i === 0) primaryData = dataset;
+        }
+      }
+
+      setActiveDatasetsMap(map);
+
+      if (primaryData) {
+        setRankingsInfo({
+          source: primaryData.meta?.name || 'Hayden Winks PPR',
+          count: primaryData.rankings?.length || 0
+        });
+        setRankings(primaryData.rankings || []);
+      }
+    } catch (err) {
+      console.error('Failed to load active datasets:', err);
+    }
+  }, [selectedRankingIds]);
+
+  useEffect(() => {
+    loadSavedRankingsList();
+    loadActiveDatasets();
+  }, []);
+
+  // Sync / Refresh Picks from Sleeper API (Supports Multi-Rankings)
+  const handleRefreshPicks = useCallback(async (currentDraft = draftInfo, ids = selectedRankingIds) => {
     if (!currentDraft || !currentDraft.draft_id || isDemoMode) return;
 
     setIsRefreshing(true);
     try {
-      const res = await fetch(`/api/sleeper/draft/${currentDraft.draft_id}/picks`);
+      const queryParam = ids.join(',');
+      const res = await fetch(`/api/sleeper/draft/${currentDraft.draft_id}/picks?ids=${encodeURIComponent(queryParam)}`);
       if (!res.ok) throw new Error('Failed to refresh picks');
 
       const data = await res.json();
       setPicks(data.picks || []);
+
+      if (data.datasetsMap && Object.keys(data.datasetsMap).length > 0) {
+        setActiveDatasetsMap(data.datasetsMap);
+      }
 
       if (data.rankingsWithDraftStatus) {
         setRankings(data.rankingsWithDraftStatus);
@@ -69,28 +112,68 @@ export default function App() {
     } finally {
       setIsRefreshing(false);
     }
-  }, [draftInfo, isDemoMode]);
+  }, [draftInfo, isDemoMode, selectedRankingIds]);
+
+  // Handle toggling selection of a ranking (up to 3 max)
+  const handleToggleSelectRanking = async (id) => {
+    let nextIds = [...selectedRankingIds];
+
+    if (nextIds.includes(id)) {
+      if (nextIds.length === 1) {
+        showNotification('Must keep at least 1 active ranking selected', 'error');
+        return;
+      }
+      nextIds = nextIds.filter(item => item !== id);
+    } else {
+      if (nextIds.length >= 3) {
+        showNotification('Maximum 3 active rankings can be selected at a time', 'error');
+        return;
+      }
+      nextIds.push(id);
+    }
+
+    setSelectedRankingIds(nextIds);
+
+    // If active sort key is removed, reset sort to primary selected ID
+    if (!nextIds.includes(activeSortKey.rankingId)) {
+      setActiveSortKey({ rankingId: nextIds[0], direction: 'asc' });
+    }
+
+    await loadActiveDatasets(nextIds);
+    if (draftInfo && !isDemoMode) {
+      handleRefreshPicks(draftInfo, nextIds);
+    }
+  };
+
+  // Sort change handler
+  const handleSortChange = (rankingId) => {
+    setActiveSortKey(prev => {
+      if (prev.rankingId === rankingId) {
+        return { rankingId, direction: prev.direction === 'asc' ? 'desc' : 'asc' };
+      }
+      return { rankingId, direction: 'asc' };
+    });
+  };
 
   // Connect to a new Draft
   const handleSelectDraft = async (selectedDraft) => {
     setIsDemoMode(false);
     showNotification(`Connecting to draft...`, 'info');
     try {
-      // Fetch full draft details (including users & draft_order) from API
       const res = await fetch(`/api/sleeper/draft/${selectedDraft.draft_id}`);
       const fullDraft = res.ok ? await res.json() : selectedDraft;
 
       setDraftInfo(fullDraft);
       saveRecentDraft(fullDraft);
       showNotification(`Connected to draft: ${fullDraft.metadata?.name || fullDraft.draft_id}`, 'success');
-      handleRefreshPicks(fullDraft);
+      handleRefreshPicks(fullDraft, selectedRankingIds);
     } catch (err) {
       setDraftInfo(selectedDraft);
-      handleRefreshPicks(selectedDraft);
+      handleRefreshPicks(selectedDraft, selectedRankingIds);
     }
   };
 
-  // Start Demo / Mock Draft Simulator Mode
+  // Start Demo Mode
   const handleStartDemoMode = () => {
     setIsDemoMode(true);
     const demoDraft = {
@@ -109,17 +192,16 @@ export default function App() {
     };
     setDraftInfo(demoDraft);
 
-    // Populate mock initial picks for demonstration
     const mockPicks = [
       { pick_no: 1, roster_id: 1, draft_slot: 1, picked_by: 'user_1', player_id: 'mock_1', metadata: { first_name: 'Jahmyr', last_name: 'Gibbs', position: 'RB', team: 'DET' } },
       { pick_no: 2, roster_id: 2, draft_slot: 2, picked_by: 'user_2', player_id: 'mock_2', metadata: { first_name: 'Puka', last_name: 'Nacua', position: 'WR', team: 'LAR' } },
       { pick_no: 3, roster_id: 3, draft_slot: 3, picked_by: 'user_3', player_id: 'mock_3', metadata: { first_name: "Ja'Marr", last_name: 'Chase', position: 'WR', team: 'CIN' } }
     ];
     setPicks(mockPicks);
-    showNotification('Demo Mock Draft Mode started! Click "Mark Drafted" to simulate picks.', 'info');
+    showNotification('Demo Mock Draft Mode started!', 'info');
   };
 
-  // Toggle manual drafted state
+  // Manual drafted toggle
   const handleToggleManualDrafted = (rank) => {
     setManualDraftedIds(prev => {
       const next = new Set(prev);
@@ -132,7 +214,7 @@ export default function App() {
     });
   };
 
-  // Toggle star wishlist
+  // Star wishlist toggle
   const handleToggleStar = (rank) => {
     setStarredIds(prev => {
       const next = new Set(prev);
@@ -145,39 +227,54 @@ export default function App() {
     });
   };
 
-  // Reload default rankings
-  const handleReloadDefaultRankings = async () => {
-    const res = await fetch('/api/rankings/reload-default', { method: 'POST' });
-    const data = await res.json();
-    setRankingsInfo({ source: data.source, count: data.count });
-    setRankings(data.rankings || []);
-    setManualDraftedIds(new Set());
-    if (draftInfo && !isDemoMode) {
-      handleRefreshPicks(draftInfo);
-    }
-  };
-
-  // Upload custom rankings
-  const handleUploadCustomRankings = async (csvContent, sourceName) => {
+  // Upload custom rankings to server
+  const handleUploadCustomRankings = async (csvContent, name) => {
     const res = await fetch('/api/rankings/upload', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ csvContent, sourceName })
+      body: JSON.stringify({ csvContent, name })
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Failed to upload CSV');
 
-    setRankingsInfo({ source: data.source, count: data.count });
-    setRankings(data.rankings || []);
-    setManualDraftedIds(new Set());
+    setSavedRankings(data.allManifest || []);
+
+    const newId = data.meta.id;
+    let nextIds = [...selectedRankingIds];
+    if (nextIds.length < 3) {
+      nextIds.push(newId);
+    } else {
+      nextIds[nextIds.length - 1] = newId;
+    }
+    setSelectedRankingIds(nextIds);
+
+    await loadActiveDatasets(nextIds);
     if (draftInfo && !isDemoMode) {
-      handleRefreshPicks(draftInfo);
+      handleRefreshPicks(draftInfo, nextIds);
+    }
+  };
+
+  // Delete custom dataset from server
+  const handleDeleteCustomRankings = async (id) => {
+    const res = await fetch(`/api/rankings/${encodeURIComponent(id)}`, { method: 'DELETE' });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to delete dataset');
+
+    setSavedRankings(data.allManifest || []);
+
+    let nextIds = selectedRankingIds.filter(item => item !== id);
+    if (nextIds.length === 0) nextIds = ['default'];
+    setSelectedRankingIds(nextIds);
+
+    await loadActiveDatasets(nextIds);
+    if (draftInfo && !isDemoMode) {
+      handleRefreshPicks(draftInfo, nextIds);
     }
   };
 
   return (
     <div className="min-h-screen p-3 md:p-8 max-w-[1500px] mx-auto">
-      {/* Toast Notification - Mobile Friendly Docking */}
+      {/* Toast Notification */}
       {notification && (
         <div className="fixed bottom-4 left-4 right-4 sm:left-auto sm:right-6 sm:bottom-6 z-50 animate-bounce-short">
           <div
@@ -220,6 +317,11 @@ export default function App() {
         <div className="lg:col-span-2">
           <BestAvailable
             rankings={rankings}
+            activeDatasetsMap={activeDatasetsMap}
+            selectedRankingIds={selectedRankingIds}
+            savedRankings={savedRankings}
+            activeSortKey={activeSortKey}
+            onSortChange={handleSortChange}
             manualDraftedIds={manualDraftedIds}
             onToggleManualDrafted={handleToggleManualDrafted}
             starredIds={starredIds}
@@ -253,9 +355,11 @@ export default function App() {
       <RankingsManagerModal
         isOpen={isRankingsModalOpen}
         onClose={() => setIsRankingsModalOpen(false)}
-        rankingsInfo={rankingsInfo}
-        onReloadDefault={handleReloadDefaultRankings}
+        savedRankings={savedRankings}
+        selectedRankingIds={selectedRankingIds}
+        onToggleSelectRanking={handleToggleSelectRanking}
         onUploadCustom={handleUploadCustomRankings}
+        onDeleteCustom={handleDeleteCustomRankings}
       />
     </div>
   );

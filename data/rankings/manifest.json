@@ -1,0 +1,18 @@
+[
+  {
+    "id": "default",
+    "filename": "default.csv",
+    "name": "Hayden Winks PPR Consensus",
+    "isDefault": true,
+    "count": 300,
+    "updatedAt": "2026-08-11T01:44:41.848Z"
+  },
+  {
+    "id": "custom_adp_tsv",
+    "filename": "ADP_Rankings.csv",
+    "name": "ADP Consensus Rankings (308 Players)",
+    "isDefault": false,
+    "count": 308,
+    "updatedAt": "2026-08-11T01:50:02.000Z"
+  }
+]

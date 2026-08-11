@@ -1,9 +1,14 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Search, Grid, List, CheckCircle2, XCircle, Sparkles, Star, Layers, X } from 'lucide-react';
+import { Search, Grid, List, CheckCircle2, XCircle, Sparkles, Star, Layers, X, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 import { getTeamStyle, calculateTier } from '../utils/fantasyUtils';
 
 export default function BestAvailable({
-  rankings,
+  rankings = [],
+  activeDatasetsMap = {},
+  selectedRankingIds = ['default'],
+  savedRankings = [],
+  activeSortKey = { rankingId: 'default', direction: 'asc' },
+  onSortChange,
   manualDraftedIds,
   onToggleManualDrafted,
   starredIds = new Set(),
@@ -27,13 +32,76 @@ export default function BestAvailable({
     return () => window.removeEventListener('resize', handleResize);
   }, [viewMode, searchQuery]);
 
-  // Position options with counts calculation
+  // Position options
   const positions = ['ALL', 'QB', 'RB', 'WR', 'TE', 'FLEX', 'K', 'DEF'];
+
+  // Map dataset metadata by ID for easy title lookup
+  const datasetMetaMap = useMemo(() => {
+    const map = {};
+    savedRankings.forEach(meta => {
+      map[meta.id] = meta;
+    });
+    return map;
+  }, [savedRankings]);
+
+  // Compute unified multi-ranking player list
+  const combinedPlayerList = useMemo(() => {
+    if (!rankings || rankings.length === 0) return [];
+
+    // Map normalized player name -> object with ranks across datasets
+    const playerMap = new Map();
+
+    // 1. First add primary rankings
+    rankings.forEach(p => {
+      const key = p.normalizedName || p.player.toLowerCase();
+      playerMap.set(key, {
+        ...p,
+        ranks: { [selectedRankingIds[0] || 'default']: p.rank }
+      });
+    });
+
+    // 2. Merge secondary/tertiary rankings
+    selectedRankingIds.slice(1).forEach(id => {
+      const dataset = activeDatasetsMap[id];
+      if (!dataset || !dataset.rankingsWithDraftStatus) return;
+
+      dataset.rankingsWithDraftStatus.forEach(p => {
+        const key = p.normalizedName || p.player.toLowerCase();
+        if (playerMap.has(key)) {
+          playerMap.get(key).ranks[id] = p.rank;
+        } else {
+          // Player only present in secondary dataset
+          playerMap.set(key, {
+            ...p,
+            ranks: { [id]: p.rank }
+          });
+        }
+      });
+    });
+
+    const list = Array.from(playerMap.values());
+
+    // 3. Sort by activeSortKey
+    const sortId = activeSortKey.rankingId || selectedRankingIds[0] || 'default';
+    const isAsc = activeSortKey.direction !== 'desc';
+
+    list.sort((a, b) => {
+      const rankA = a.ranks[sortId] ?? 999;
+      const rankB = b.ranks[sortId] ?? 999;
+
+      if (rankA !== rankB) {
+        return isAsc ? rankA - rankB : rankB - rankA;
+      }
+      return (a.rank || 999) - (b.rank || 999);
+    });
+
+    return list;
+  }, [rankings, activeDatasetsMap, selectedRankingIds, activeSortKey]);
 
   // Count available players by position
   const posCounts = useMemo(() => {
     const counts = { ALL: 0, QB: 0, RB: 0, WR: 0, TE: 0, FLEX: 0, K: 0, DEF: 0 };
-    rankings.forEach(p => {
+    combinedPlayerList.forEach(p => {
       const isManual = manualDraftedIds.has(p.rank);
       const isPicked = p.isPicked || isManual;
       if (hidePicked && isPicked) return;
@@ -44,20 +112,17 @@ export default function BestAvailable({
       if (['RB', 'WR', 'TE'].includes(pos)) counts.FLEX++;
     });
     return counts;
-  }, [rankings, hidePicked, manualDraftedIds]);
+  }, [combinedPlayerList, hidePicked, manualDraftedIds]);
 
-  // Filter rankings
+  // Filter player list
   const filteredPlayers = useMemo(() => {
-    return rankings.filter((player) => {
-      // 1. Picked Check
+    return combinedPlayerList.filter((player) => {
       const isManualDrafted = manualDraftedIds.has(player.rank);
       const isDrafted = player.isPicked || isManualDrafted;
       if (hidePicked && isDrafted) return false;
 
-      // 2. Starred Check
       if (starredOnly && !starredIds.has(player.rank)) return false;
 
-      // 3. Position Filter
       const pos = (player.position || '').toUpperCase();
       if (selectedPos !== 'ALL') {
         if (selectedPos === 'FLEX') {
@@ -67,7 +132,6 @@ export default function BestAvailable({
         }
       }
 
-      // 4. Search Query
       if (searchQuery.trim()) {
         const query = searchQuery.toLowerCase();
         const nameMatch = player.player.toLowerCase().includes(query);
@@ -78,11 +142,11 @@ export default function BestAvailable({
 
       return true;
     });
-  }, [rankings, selectedPos, searchQuery, hidePicked, manualDraftedIds, starredOnly, starredIds]);
+  }, [combinedPlayerList, selectedPos, searchQuery, hidePicked, manualDraftedIds, starredOnly, starredIds]);
 
   return (
     <section className="glass-panel p-4 sm:p-5 mb-6 glass-panel-accent" aria-labelledby="best-available-heading">
-      {/* Top Title & Search Bar */}
+      {/* Top Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-3.5 mb-4 pb-4 border-b border-slate-800">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center shrink-0 shadow-lg shadow-amber-500/10">
@@ -99,21 +163,19 @@ export default function BestAvailable({
               </span>
             </div>
             <p className="text-[11px] sm:text-xs text-slate-400">
-              Hayden Winks PPR Consensus • Sleeper API Matched
+              Comparing <span className="text-blue-300 font-semibold">{selectedRankingIds.length} active rankings</span> • Click column headers to sort
             </p>
           </div>
         </div>
 
         {/* Search & Controls */}
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
-          {/* Search Bar */}
           <div className="relative flex-1 sm:w-60">
             <input
               type="text"
               placeholder="Search player, team, pos..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              aria-label="Search players by name, position, or team"
               className="input-text w-full pr-8 py-2 text-xs"
               style={{ paddingLeft: '2.6rem' }}
             />
@@ -122,16 +184,13 @@ export default function BestAvailable({
               <button
                 onClick={() => setSearchQuery('')}
                 className="absolute right-2.5 top-2.5 text-slate-400 hover:text-white p-0.5"
-                aria-label="Clear search query"
               >
                 <X className="w-3.5 h-3.5" />
               </button>
             )}
           </div>
 
-          {/* Toggles Group */}
           <div className="flex items-center justify-between sm:justify-start gap-2">
-            {/* Starred Only Toggle */}
             <button
               onClick={() => setStarredOnly(!starredOnly)}
               className={`btn text-xs py-1.5 px-2.5 border ${
@@ -140,13 +199,11 @@ export default function BestAvailable({
                   : 'btn-secondary text-slate-400'
               }`}
               title="Show target wishlist only"
-              aria-label="Toggle target wishlist only filter"
             >
               <Star className={`w-3.5 h-3.5 ${starredOnly ? 'fill-amber-400 text-amber-400' : ''}`} />
               <span className="hidden xs:inline">Targets</span>
             </button>
 
-            {/* Group By Tiers Toggle */}
             <button
               onClick={() => setGroupByTiers(!groupByTiers)}
               className={`btn text-xs py-1.5 px-2.5 border ${
@@ -155,13 +212,11 @@ export default function BestAvailable({
                   : 'btn-secondary text-slate-400'
               }`}
               title="Toggle Tier Headers"
-              aria-label="Toggle tier header grouping"
             >
               <Layers className="w-3.5 h-3.5 text-blue-400" />
               <span className="hidden xs:inline">Tiers</span>
             </button>
 
-            {/* Hide Picked Toggle */}
             <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-300 cursor-pointer select-none glass-panel px-2.5 py-1.5 bg-slate-950/80 border-slate-800">
               <input
                 type="checkbox"
@@ -172,11 +227,9 @@ export default function BestAvailable({
               <span className="text-[11px] sm:text-xs">Hide Drafted</span>
             </label>
 
-            {/* View Switcher */}
-            <div className="flex rounded-xl bg-slate-950 p-1 border border-slate-800" role="group" aria-label="Player view mode toggle">
+            <div className="flex rounded-xl bg-slate-950 p-1 border border-slate-800" role="group">
               <button
                 onClick={() => setViewMode('table')}
-                aria-label="Switch to Table View"
                 className={`p-1.5 rounded-lg text-xs transition ${
                   viewMode === 'table' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-400 hover:text-white'
                 }`}
@@ -186,7 +239,6 @@ export default function BestAvailable({
               </button>
               <button
                 onClick={() => setViewMode('cards')}
-                aria-label="Switch to Cards View"
                 className={`p-1.5 rounded-lg text-xs transition ${
                   viewMode === 'cards' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-400 hover:text-white'
                 }`}
@@ -199,8 +251,8 @@ export default function BestAvailable({
         </div>
       </div>
 
-      {/* Position Filter Tabs - Touch-Friendly Swipe Bar */}
-      <div className="flex items-center gap-1.5 overflow-x-auto pb-2 mb-3 scrollbar-thin touch-pan-x" role="group" aria-label="Filter players by position">
+      {/* Position Filter Tabs */}
+      <div className="flex items-center gap-1.5 overflow-x-auto pb-2 mb-3 scrollbar-thin touch-pan-x" role="group">
         {positions.map((pos) => {
           const count = posCounts[pos] || 0;
           const isActive = selectedPos === pos;
@@ -229,22 +281,53 @@ export default function BestAvailable({
       {/* Table View */}
       {viewMode === 'table' ? (
         <div className="overflow-x-auto rounded-2xl border border-slate-800 bg-slate-950/60 shadow-inner max-h-[650px] overflow-y-auto">
-          <table className="w-full text-left border-collapse min-w-[550px]">
+          <table className="w-full text-left border-collapse min-w-[650px]">
             <thead>
-              <tr>
-                <th className="text-center w-10">Target</th>
-                <th className="text-center w-12">Rank</th>
-                <th>Player</th>
-                <th>Pos</th>
-                <th>Team</th>
-                <th className="hidden sm:table-cell">Status</th>
-                <th className="text-right">Action</th>
+              <tr className="bg-slate-900/90 border-b border-slate-800">
+                <th className="text-center w-10 py-3">Target</th>
+                
+                {/* Dynamically Render Header for Each Selected Ranking */}
+                {selectedRankingIds.map((id, index) => {
+                  const meta = datasetMetaMap[id] || { name: id === 'default' ? 'Winks PPR' : `Rank ${index + 1}` };
+                  const isCurrentSort = (activeSortKey.rankingId || selectedRankingIds[0]) === id;
+
+                  return (
+                    <th key={id} className="text-center py-3 px-2">
+                      <button
+                        onClick={() => onSortChange && onSortChange(id)}
+                        className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-lg text-xs font-extrabold transition ${
+                          isCurrentSort
+                            ? 'bg-blue-600 text-white shadow-sm'
+                            : 'hover:bg-slate-800 text-slate-300'
+                        }`}
+                        title={`Click to sort by ${meta.name}`}
+                      >
+                        <span className="truncate max-w-[120px]">{meta.name}</span>
+                        {isCurrentSort ? (
+                          activeSortKey.direction === 'desc' ? (
+                            <ArrowDown className="w-3.5 h-3.5 text-blue-200" />
+                          ) : (
+                            <ArrowUp className="w-3.5 h-3.5 text-blue-200" />
+                          )
+                        ) : (
+                          <ArrowUpDown className="w-3 h-3 text-slate-500" />
+                        )}
+                      </button>
+                    </th>
+                  );
+                })}
+
+                <th className="py-3 px-3">Player</th>
+                <th className="py-3 px-2">Pos</th>
+                <th className="py-3 px-2">Team</th>
+                <th className="hidden sm:table-cell py-3 px-3">Status</th>
+                <th className="text-right py-3 px-3">Action</th>
               </tr>
             </thead>
             <tbody>
               {filteredPlayers.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="py-12 text-center text-slate-500 font-medium text-xs">
+                  <td colSpan={6 + selectedRankingIds.length} className="py-12 text-center text-slate-500 font-medium text-xs">
                     No available players match your search or filter criteria.
                   </td>
                 </tr>
@@ -254,17 +337,18 @@ export default function BestAvailable({
                   const rows = [];
 
                   filteredPlayers.forEach((p) => {
-                    const isManual = manualDraftedIds.has(p.rank);
+                    const primaryRank = p.rank || p.ranks[selectedRankingIds[0]] || 999;
+                    const isManual = manualDraftedIds.has(primaryRank);
                     const isPicked = p.isPicked || isManual;
-                    const isStarred = starredIds.has(p.rank);
-                    const tierInfo = calculateTier(p.rank);
+                    const isStarred = starredIds.has(primaryRank);
+                    const tierInfo = calculateTier(primaryRank);
 
-                    // Insert non-sticky Tier Header row if tier changes and group-by-tiers is enabled
+                    // Insert Tier Header row if tier changes and group-by-tiers is enabled
                     if (groupByTiers && tierInfo.tier !== currentTierNum) {
                       currentTierNum = tierInfo.tier;
                       rows.push(
                         <tr key={`tier-${tierInfo.tier}`}>
-                          <td colSpan={7} className={`py-2 px-3 bg-gradient-to-r ${tierInfo.color} border-y text-xs font-extrabold uppercase tracking-wider`}>
+                          <td colSpan={6 + selectedRankingIds.length} className={`py-2 px-3 bg-gradient-to-r ${tierInfo.color} border-y text-xs font-extrabold uppercase tracking-wider`}>
                             <div className="flex items-center gap-2">
                               <Layers className="w-3.5 h-3.5" />
                               <span>{tierInfo.label}</span>
@@ -274,16 +358,11 @@ export default function BestAvailable({
                       );
                     }
 
-                    let rankClass = "rank-badge";
-                    if (p.rank === 1) rankClass = "rank-badge rank-badge-top1";
-                    if (p.rank === 2) rankClass = "rank-badge rank-badge-top2";
-                    if (p.rank === 3) rankClass = "rank-badge rank-badge-top3";
-
                     const teamStyle = getTeamStyle(p.team);
 
                     rows.push(
                       <tr
-                        key={p.rank}
+                        key={p.normalizedName || p.player}
                         className={`hover-row transition ${
                           isPicked ? 'opacity-40 bg-slate-950/70 line-through' : ''
                         }`}
@@ -291,10 +370,9 @@ export default function BestAvailable({
                         {/* Star Wishlist */}
                         <td className="text-center">
                           <button
-                            onClick={() => onToggleStar && onToggleStar(p.rank)}
+                            onClick={() => onToggleStar && onToggleStar(primaryRank)}
                             className="p-1 rounded hover:bg-slate-800 transition"
                             title={isStarred ? 'Unstar target' : 'Star target'}
-                            aria-label={`${isStarred ? 'Remove' : 'Add'} ${p.player} ${isStarred ? 'from' : 'to'} target wishlist`}
                           >
                             <Star
                               className={`w-4 h-4 ${
@@ -306,13 +384,32 @@ export default function BestAvailable({
                           </button>
                         </td>
 
-                        {/* Rank */}
-                        <td className="text-center">
-                          <span className={rankClass}>#{p.rank}</span>
-                        </td>
+                        {/* Render Rank Badges for Each Selected Ranking */}
+                        {selectedRankingIds.map((id) => {
+                          const r = p.ranks[id];
+                          const isSortActive = (activeSortKey.rankingId || selectedRankingIds[0]) === id;
+
+                          return (
+                            <td key={id} className="text-center py-2 px-2">
+                              {r ? (
+                                <span
+                                  className={`inline-block px-2 py-0.5 rounded font-mono font-extrabold text-xs border ${
+                                    isSortActive
+                                      ? 'bg-blue-600 text-white border-blue-400 shadow'
+                                      : 'bg-slate-900 text-slate-300 border-slate-800'
+                                  }`}
+                                >
+                                  #{r}
+                                </span>
+                              ) : (
+                                <span className="text-slate-600 text-xs font-mono">N/A</span>
+                              )}
+                            </td>
+                          );
+                        })}
 
                         {/* Player Name & Info */}
-                        <td>
+                        <td className="py-2 px-3">
                           <div className="flex items-center gap-2">
                             <span className="font-bold text-white text-xs sm:text-sm">{p.player}</span>
                             {p.sleeperDetails?.injuryStatus && (
@@ -324,14 +421,14 @@ export default function BestAvailable({
                         </td>
 
                         {/* Position Badge */}
-                        <td>
+                        <td className="py-2 px-2">
                           <span className={`badge-pos badge-pos-${p.position}`}>
                             {p.position}
                           </span>
                         </td>
 
-                        {/* Team Badge with authentic colors */}
-                        <td>
+                        {/* Team Badge */}
+                        <td className="py-2 px-2">
                           <span
                             className="text-[10px] sm:text-[11px] font-mono font-extrabold px-1.5 sm:px-2 py-0.5 rounded border inline-block"
                             style={{
@@ -344,8 +441,8 @@ export default function BestAvailable({
                           </span>
                         </td>
 
-                        {/* Status (Hidden on mobile) */}
-                        <td className="hidden sm:table-cell">
+                        {/* Status */}
+                        <td className="hidden sm:table-cell py-2 px-3">
                           {isPicked ? (
                             <span className="text-rose-400 text-xs font-semibold flex items-center gap-1">
                               <XCircle className="w-3.5 h-3.5" />
@@ -359,9 +456,9 @@ export default function BestAvailable({
                         </td>
 
                         {/* Action Toggle */}
-                        <td className="text-right">
+                        <td className="text-right py-2 px-3">
                           <button
-                            onClick={() => onToggleManualDrafted(p.rank)}
+                            onClick={() => onToggleManualDrafted(primaryRank)}
                             className={`text-[11px] sm:text-xs font-semibold px-2.5 py-1 sm:py-1.5 rounded-lg border transition ${
                               isManual
                                 ? 'bg-amber-500/20 text-amber-300 hover:bg-amber-500/30 border-amber-500/40'
@@ -382,36 +479,53 @@ export default function BestAvailable({
           </table>
         </div>
       ) : (
-        /* Cards View (Perfect for Mobile Touch Screens) */
+        /* Cards View */
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 max-h-[650px] overflow-y-auto pr-1">
           {filteredPlayers.map((p) => {
-            const isManual = manualDraftedIds.has(p.rank);
+            const primaryRank = p.rank || p.ranks[selectedRankingIds[0]] || 999;
+            const isManual = manualDraftedIds.has(primaryRank);
             const isPicked = p.isPicked || isManual;
-            const isStarred = starredIds.has(p.rank);
+            const isStarred = starredIds.has(primaryRank);
             const teamStyle = getTeamStyle(p.team);
 
             return (
               <div
-                key={p.rank}
+                key={p.normalizedName || p.player}
                 className={`glass-panel p-3.5 flex flex-col justify-between transition relative ${
                   isPicked ? 'opacity-40 bg-slate-950/80' : 'glass-panel-hover'
                 }`}
               >
                 <div>
                   <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-2">
-                      <span className="font-mono text-xs font-extrabold text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded border border-blue-500/30">
-                        #{p.rank}
-                      </span>
+                    {/* Multi-Ranking Badges on Mobile Card */}
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      {selectedRankingIds.map((id) => {
+                        const r = p.ranks[id];
+                        const meta = datasetMetaMap[id];
+                        const label = meta ? meta.name.substring(0, 8) : id;
+                        const isSortActive = (activeSortKey.rankingId || selectedRankingIds[0]) === id;
+
+                        return r ? (
+                          <span
+                            key={id}
+                            className={`font-mono text-[11px] font-extrabold px-1.5 py-0.5 rounded border ${
+                              isSortActive
+                                ? 'bg-blue-600 text-white border-blue-400'
+                                : 'bg-slate-900 text-slate-300 border-slate-800'
+                            }`}
+                          >
+                            #{r} <span className="opacity-60 text-[9px]">{label}</span>
+                          </span>
+                        ) : null;
+                      })}
                       <span className={`badge-pos badge-pos-${p.position}`}>
                         {p.position}
                       </span>
                     </div>
 
                     <button
-                      onClick={() => onToggleStar && onToggleStar(p.rank)}
+                      onClick={() => onToggleStar && onToggleStar(primaryRank)}
                       className="p-1 rounded hover:bg-slate-800 transition"
-                      aria-label={`${isStarred ? 'Remove' : 'Add'} ${p.player} ${isStarred ? 'from' : 'to'} target wishlist`}
                     >
                       <Star
                         className={`w-4 h-4 ${
@@ -463,7 +577,7 @@ export default function BestAvailable({
                   </span>
 
                   <button
-                    onClick={() => onToggleManualDrafted(p.rank)}
+                    onClick={() => onToggleManualDrafted(primaryRank)}
                     className="text-xs font-semibold px-3 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-700 active:scale-95 transition"
                   >
                     {isManual ? 'Unmark' : 'Mark Drafted'}
