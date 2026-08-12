@@ -25,6 +25,40 @@ Open **[http://localhost:5173/](http://localhost:5173/)** in your browser.
 
 ---
 
+## 🐳 Docker Setup
+
+You can run Sleeper Draft Assistant using Docker without needing a local Node.js installation.
+
+### Option A: Using Docker Compose (Recommended)
+
+1. **Start the container**:
+   ```bash
+   docker compose up -d --build
+   ```
+2. **Access the app**:
+   Open **[http://localhost:3001/](http://localhost:3001/)** in your browser.
+3. **Stop the container**:
+   ```bash
+   docker compose down
+   ```
+
+> **Note**: `docker-compose.yml` mounts `./rankings.csv` into the container, allowing custom rankings updates without rebuilding the image.
+
+### Option B: Using Docker CLI
+
+1. **Build the image**:
+   ```bash
+   docker build -t sleeper-draft-assistant .
+   ```
+2. **Run the container**:
+   ```bash
+   docker run -d -p 3001:3001 --name sleeper-draft-assistant sleeper-draft-assistant
+   ```
+3. **Access the app**:
+   Open **[http://localhost:3001/](http://localhost:3001/)** in your browser.
+
+---
+
 ## 🛠 Available Commands
 
 | Command | Description |
