@@ -78,7 +78,9 @@ You can run Sleeper Draft Assistant using Docker without needing a local Node.js
 - **Side-by-Side Comparison (Up to 3 Rankings)**: Select up to 3 rankings concurrently to compare ranks and expert consensus.
 - **1-Click Header Sorting**: Click any ranking column header in the player table to instantly re-sort available targets.
 - **Rankings CSV Converter Skill**: Automated script to convert raw TSV/copied web text, normalize player names (`Last, First` ➔ `First Last`), and standardize NFL team codes.
-- **Hayden Winks PPR Rankings**: Pre-loaded 300-player consensus rankings with Tier 1–8 dividers.
+- **Pre-Loaded Consensus Rankings**:
+  - **Hayden Winks PPR Consensus**: 300-player consensus with Tier 1–8 dividers.
+  - **NFFC ADP Rankings**: 315-player High-Stakes ADP consensus.
 - **AI Value Target Engine**: Highlights top recommended available targets tailored to your roster needs.
 - **Interactive Draft Board Matrix**: Round-by-round snake draft board grid with live "On The Clock" banner.
 - **Target Wishlist Starring**: Star key targets to highlight them across views.
