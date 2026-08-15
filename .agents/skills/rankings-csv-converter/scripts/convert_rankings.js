@@ -19,7 +19,7 @@ const TEAM_MAP = {
   'NO': 'NO'
 };
 
-const VALID_POSITIONS = new Set(['QB', 'RB', 'WR', 'TE', 'K', 'DEF', 'DST', 'FLX', 'FLEX']);
+const VALID_POSITIONS = new Set(['QB', 'RB', 'WR', 'TE', 'K', 'DEF', 'DST', 'TDSP', 'TK', 'PK', 'FLX', 'FLEX']);
 
 function normalizeTeam(team) {
   if (!team) return '';
@@ -30,7 +30,8 @@ function normalizeTeam(team) {
 function normalizePos(pos) {
   if (!pos) return '';
   let upper = pos.trim().toUpperCase();
-  if (upper === 'DST') return 'DEF';
+  if (upper === 'DST' || upper === 'TDSP' || upper === 'DEFENSE') return 'DEF';
+  if (upper === 'TK' || upper === 'PK') return 'K';
   return upper;
 }
 
@@ -44,6 +45,8 @@ function cleanPlayerName(name) {
       cleaned = `${parts[1]} ${parts[0]}`;
     }
   }
+  // Remove parenthetical team indicators (e.g. "Los Angeles (LAR) Rams" -> "Los Angeles Rams")
+  cleaned = cleaned.replace(/\s*\([A-Z0-9]+\)/gi, '').replace(/\s+/g, ' ').trim();
   return cleaned;
 }
 
