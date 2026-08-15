@@ -16,8 +16,13 @@ scratch/
 .tempmediaStorage/
 *.png
 
+# Test Reports & Artifacts
+playwright-report/
+test-results/
+
 # IDE & OS Metadata
 .DS_Store
 Thumbs.db
 .vscode/
 .idea/
+
