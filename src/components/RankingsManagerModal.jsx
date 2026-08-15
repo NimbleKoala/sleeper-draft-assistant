@@ -159,11 +159,15 @@ export default function RankingsManagerModal({
                           <span className="font-bold text-sm text-white">
                             {dataset.name}
                           </span>
-                          {dataset.isDefault && (
+                          {dataset.isDefault ? (
                             <span className="text-[10px] uppercase tracking-wider font-extrabold px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
                               Default PPR
                             </span>
-                          )}
+                          ) : (dataset.isPreset || dataset.id === 'nffc_adp') ? (
+                            <span className="text-[10px] uppercase tracking-wider font-extrabold px-1.5 py-0.5 rounded bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
+                              Included
+                            </span>
+                          ) : null}
                           {isPrimary && (
                             <span className="text-[10px] uppercase tracking-wider font-extrabold px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-300 border border-blue-500/30">
                               Primary
@@ -177,7 +181,7 @@ export default function RankingsManagerModal({
                     </div>
 
                     <div className="flex items-center gap-2">
-                      {!dataset.isDefault && (
+                      {!dataset.isDefault && !dataset.isPreset && dataset.id !== 'nffc_adp' && (
                         <button
                           onClick={() => handleDelete(dataset.id, dataset.name)}
                           disabled={loading}
