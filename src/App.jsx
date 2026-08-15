@@ -7,13 +7,44 @@ import DraftConnectModal, { saveRecentDraft, PREFERRED_USERNAME } from './compon
 import RankingsManagerModal from './components/RankingsManagerModal';
 import { AlertCircle, CheckCircle, Info } from 'lucide-react';
 
+const SELECTED_RANKINGS_KEY = 'sleeper_selected_rankings';
+
+export const getStoredSelectedRankingIds = () => {
+  try {
+    const raw = localStorage.getItem(SELECTED_RANKINGS_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return parsed;
+      }
+    }
+  } catch (err) {
+    console.error('Failed to read stored selected rankings:', err);
+  }
+  return ['default'];
+};
+
+export const saveStoredSelectedRankingIds = (ids) => {
+  try {
+    if (Array.isArray(ids) && ids.length > 0) {
+      localStorage.setItem(SELECTED_RANKINGS_KEY, JSON.stringify(ids));
+    }
+  } catch (err) {
+    console.error('Failed to save selected rankings:', err);
+  }
+};
+
 export default function App() {
   const [savedRankings, setSavedRankings] = useState([]);
-  const [selectedRankingIds, setSelectedRankingIds] = useState(['default']);
+  const [selectedRankingIds, setSelectedRankingIds] = useState(() => getStoredSelectedRankingIds());
   const [activeDatasetsMap, setActiveDatasetsMap] = useState({});
   const [rankingsInfo, setRankingsInfo] = useState({ source: '', count: 0 });
   const [rankings, setRankings] = useState([]);
-  const [activeSortKey, setActiveSortKey] = useState({ rankingId: 'default', direction: 'asc' });
+  const [isLoadingRankings, setIsLoadingRankings] = useState(true);
+  const [activeSortKey, setActiveSortKey] = useState(() => {
+    const initialIds = getStoredSelectedRankingIds();
+    return { rankingId: initialIds[0] || 'default', direction: 'asc' };
+  });
 
   const [draftInfo, setDraftInfo] = useState(null);
   const [picks, setPicks] = useState([]);
@@ -35,6 +66,13 @@ export default function App() {
     setTimeout(() => setNotification(null), 3500);
   };
 
+  // Keep localStorage updated whenever selected rankings change
+  useEffect(() => {
+    if (selectedRankingIds && selectedRankingIds.length > 0) {
+      saveStoredSelectedRankingIds(selectedRankingIds);
+    }
+  }, [selectedRankingIds]);
+
   // Fetch list of all saved rankings on server
   const loadSavedRankingsList = useCallback(async () => {
     try {
@@ -48,9 +86,11 @@ export default function App() {
 
   // Fetch parsed dataset for selected ranking IDs
   const loadActiveDatasets = useCallback(async (ids = selectedRankingIds) => {
+    setIsLoadingRankings(true);
     try {
       const map = {};
       let primaryData = null;
+      const validIds = [];
 
       for (let i = 0; i < ids.length; i++) {
         const id = ids[i];
@@ -61,8 +101,28 @@ export default function App() {
             meta: dataset.meta,
             rankingsWithDraftStatus: dataset.rankings
           };
-          if (i === 0) primaryData = dataset;
+          if (!primaryData) primaryData = dataset;
+          validIds.push(id);
         }
+      }
+
+      // If stored IDs were invalid or removed on server, fallback to default
+      if (validIds.length === 0) {
+        const defRes = await fetch('/api/rankings/dataset/default');
+        if (defRes.ok) {
+          const defData = await defRes.json();
+          map['default'] = {
+            meta: defData.meta,
+            rankingsWithDraftStatus: defData.rankings
+          };
+          primaryData = defData;
+          validIds.push('default');
+        }
+      }
+
+      if (validIds.length > 0 && (validIds.length !== ids.length || validIds.some((v, idx) => v !== ids[idx]))) {
+        setSelectedRankingIds(validIds);
+        saveStoredSelectedRankingIds(validIds);
       }
 
       setActiveDatasetsMap(map);
@@ -76,12 +136,15 @@ export default function App() {
       }
     } catch (err) {
       console.error('Failed to load active datasets:', err);
+    } finally {
+      setIsLoadingRankings(false);
     }
   }, [selectedRankingIds]);
 
   useEffect(() => {
     loadSavedRankingsList();
-    loadActiveDatasets();
+    const stored = getStoredSelectedRankingIds();
+    loadActiveDatasets(stored);
   }, []);
 
   // Sync / Refresh Picks from Sleeper API (Supports Multi-Rankings)
@@ -146,14 +209,14 @@ export default function App() {
   };
 
   // Sort change handler
-  const handleSortChange = (rankingId) => {
+  const handleSortChange = useCallback((rankingId) => {
     setActiveSortKey(prev => {
       if (prev.rankingId === rankingId) {
         return { rankingId, direction: prev.direction === 'asc' ? 'desc' : 'asc' };
       }
       return { rankingId, direction: 'asc' };
     });
-  };
+  }, []);
 
   // Connect to a new Draft
   const handleSelectDraft = async (selectedDraft) => {
@@ -202,7 +265,7 @@ export default function App() {
   };
 
   // Manual drafted toggle
-  const handleToggleManualDrafted = (rank) => {
+  const handleToggleManualDrafted = useCallback((rank) => {
     setManualDraftedIds(prev => {
       const next = new Set(prev);
       if (next.has(rank)) {
@@ -212,10 +275,10 @@ export default function App() {
       }
       return next;
     });
-  };
+  }, []);
 
   // Star wishlist toggle
-  const handleToggleStar = (rank) => {
+  const handleToggleStar = useCallback((rank) => {
     setStarredIds(prev => {
       const next = new Set(prev);
       if (next.has(rank)) {
@@ -225,7 +288,7 @@ export default function App() {
       }
       return next;
     });
-  };
+  }, []);
 
   // Upload custom rankings to server
   const handleUploadCustomRankings = async (csvContent, name) => {
@@ -276,14 +339,14 @@ export default function App() {
     <div className="min-h-screen p-3 md:p-8 max-w-[1500px] mx-auto">
       {/* Toast Notification */}
       {notification && (
-        <div className="fixed bottom-4 left-4 right-4 sm:left-auto sm:right-6 sm:bottom-6 z-50 animate-bounce-short">
+        <div className="fixed bottom-4 left-4 right-4 sm:left-auto sm:right-6 sm:bottom-6 z-50 toast-enter">
           <div
-            className={`px-4 py-3 rounded-2xl shadow-2xl flex items-center gap-2.5 text-xs font-bold border ${
+            className={`px-3.5 py-2.5 rounded-lg flex items-center gap-2.5 text-xs font-semibold border ${
               notification.type === 'success'
-                ? 'bg-emerald-950/95 text-emerald-300 border-emerald-500/40 shadow-emerald-500/10'
+                ? 'bg-[#06241a] text-emerald-300 border-emerald-500/30'
                 : notification.type === 'error'
-                ? 'bg-rose-950/95 text-rose-300 border-rose-500/40 shadow-rose-500/10'
-                : 'bg-blue-950/95 text-blue-300 border-blue-500/40 shadow-blue-500/10'
+                ? 'bg-[#280a11] text-rose-300 border-rose-500/30'
+                : 'bg-[#0a162d] text-blue-300 border-blue-500/30'
             }`}
           >
             {notification.type === 'success' ? (
@@ -326,6 +389,7 @@ export default function App() {
             onToggleManualDrafted={handleToggleManualDrafted}
             starredIds={starredIds}
             onToggleStar={handleToggleStar}
+            isLoading={isLoadingRankings}
           />
         </div>
 
@@ -341,6 +405,7 @@ export default function App() {
           <DraftBoard
             draftInfo={draftInfo}
             picks={picks}
+            onConnectClick={() => setIsConnectModalOpen(true)}
           />
         </div>
       </div>
