@@ -53,15 +53,15 @@ export default function Header({
     <header className="glass-panel p-4 md:px-6 mb-6 flex flex-col lg:flex-row items-center justify-between gap-4 glass-panel-accent">
       {/* Left: Brand Header */}
       <div className="flex items-center gap-3.5 w-full lg:w-auto">
-        <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-purple-600 flex items-center justify-center shadow-lg shadow-blue-500/25 border border-blue-400/40 shrink-0">
-          <Radio className="w-6 h-6 text-white animate-pulse" />
+        <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center border border-blue-400/30 shrink-0">
+          <Radio className="w-5 h-5 text-white" />
         </div>
         <div>
           <div className="flex items-center gap-2.5 flex-wrap">
-            <h1 className="text-xl md:text-2xl font-black tracking-tight text-white">
+            <h1 className="text-xl md:text-2xl font-bold tracking-tight text-white">
               Sleeper Draft Assistant
             </h1>
-            <span className="text-[10px] font-extrabold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-gradient-to-r from-blue-500/20 to-purple-500/20 text-blue-300 border border-blue-400/30 shadow-sm">
+            <span className="text-[10px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/25">
               2026 PPR
             </span>
           </div>
@@ -126,13 +126,15 @@ export default function Header({
       </div>
 
       {/* Right: Actions */}
-      <div className="flex items-center gap-2.5 w-full lg:w-auto justify-end">
+      <div className="flex items-center gap-2 sm:gap-2.5 w-full lg:w-auto justify-between sm:justify-end">
         <button
+          type="button"
           onClick={onOpenRankingsModal}
-          className="btn btn-secondary text-xs flex items-center gap-2"
+          aria-label={`View rankings manager. Currently loaded: ${rankingsInfo?.count || 0} players`}
+          className="btn btn-secondary text-xs py-1.5 px-3 min-h-[36px] flex items-center justify-center gap-2 flex-1 sm:flex-none focus-visible:ring-2 focus-visible:ring-blue-500"
           title={rankingsInfo?.source}
         >
-          <Database className="w-3.5 h-3.5 text-blue-400" />
+          <Database className="w-3.5 h-3.5 text-blue-400 shrink-0" aria-hidden="true" />
           <span className="text-slate-400">Rankings:</span>
           <span className="text-blue-300 font-mono font-extrabold">
             {rankingsInfo?.count || 0}
@@ -140,14 +142,16 @@ export default function Header({
         </button>
 
         <button
+          type="button"
           onClick={onRefreshPicks}
           disabled={!draftInfo || isRefreshing}
-          className="btn btn-emerald text-xs flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
+          aria-label="Sync draft picks from Sleeper"
+          className="btn btn-emerald text-xs py-1.5 px-3 min-h-[36px] flex items-center justify-center gap-2 flex-1 sm:flex-none disabled:opacity-40 disabled:cursor-not-allowed focus-visible:ring-2 focus-visible:ring-emerald-500"
         >
-          <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
+          <RefreshCw className={`w-3.5 h-3.5 shrink-0 ${isRefreshing ? 'animate-spin' : ''}`} aria-hidden="true" />
           <span>Sync Picks</span>
           {lastRefreshed && (
-            <span className="text-[10px] opacity-75 font-mono ml-1">
+            <span className="text-[10px] opacity-75 font-mono ml-1 hidden xs:inline">
               ({lastRefreshed})
             </span>
           )}

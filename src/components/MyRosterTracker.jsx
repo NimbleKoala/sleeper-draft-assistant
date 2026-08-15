@@ -1,9 +1,10 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, memo } from 'react';
 import { UserCheck, Award, Sparkles, AlertCircle, ChevronRight, ShieldCheck } from 'lucide-react';
 import { getTeamStyle } from '../utils/fantasyUtils';
 import { getStoredUsername, PREFERRED_USERNAME } from './DraftConnectModal';
+import EmptyState from './common/EmptyState';
 
-export default function MyRosterTracker({ draftInfo, picks = [], rankings = [], manualDraftedIds = new Set() }) {
+const MyRosterTracker = memo(function MyRosterTracker({ draftInfo, picks = [], rankings = [], manualDraftedIds = new Set() }) {
   const [selectedSlot, setSelectedSlot] = useState(1);
 
   // Extract all rosters / users from draftInfo sorted strictly by draft slot (1, 2, 3...)
@@ -242,9 +243,11 @@ export default function MyRosterTracker({ draftInfo, picks = [], rankings = [], 
         </div>
 
         {myPicks.length === 0 ? (
-          <div className="p-5 text-center text-slate-500 text-xs bg-slate-950/50 rounded-xl border border-slate-800/60">
-            No picks logged yet for this team.
-          </div>
+          <EmptyState
+            icon={UserCheck}
+            title="No Picks Logged"
+            description={`No draft picks logged yet for ${selectedRoster?.name || 'this team'}. Recommended position targets appear above.`}
+          />
         ) : (
           <ul role="list" className="space-y-2 max-h-60 overflow-y-auto pr-1">
             {myPicks.map(p => {
@@ -296,4 +299,6 @@ export default function MyRosterTracker({ draftInfo, picks = [], rankings = [], 
       </div>
     </section>
   );
-}
+});
+
+export default MyRosterTracker;

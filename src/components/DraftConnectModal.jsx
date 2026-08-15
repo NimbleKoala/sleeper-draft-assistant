@@ -199,18 +199,19 @@ export default function DraftConnectModal({ isOpen, onClose, onSelectDraft }) {
         </p>
 
         {/* Tab Switcher */}
-        <div className="flex border-b border-slate-800 mb-6" role="tablist" aria-label="Sleeper Connection Options">
+        <div className="flex border-b border-slate-800 mb-6 overflow-x-auto scrollbar-thin touch-pan-x" role="tablist" aria-label="Sleeper Connection Options">
           <button
+            type="button"
             role="tab"
             aria-selected={activeTab === 'recent'}
             onClick={() => setActiveTab('recent')}
-            className={`pb-3 px-3 text-xs font-extrabold border-b-2 flex items-center gap-2 transition ${
+            className={`pb-3 px-2 sm:px-3 text-xs font-extrabold border-b-2 flex items-center gap-1.5 whitespace-nowrap transition focus-visible:ring-2 focus-visible:ring-blue-500 ${
               activeTab === 'recent'
                 ? 'border-blue-500 text-blue-400'
                 : 'border-transparent text-slate-400 hover:text-slate-200'
             }`}
           >
-            <History className="w-4 h-4" /> Recent Drafts
+            <History className="w-4 h-4 shrink-0" aria-hidden="true" /> Recent Drafts
             {recentDrafts.length > 0 && (
               <span className="text-[10px] font-mono px-1.5 py-0.2 rounded-full bg-blue-500/20 text-blue-300">
                 {recentDrafts.length}
@@ -219,29 +220,31 @@ export default function DraftConnectModal({ isOpen, onClose, onSelectDraft }) {
           </button>
 
           <button
+            type="button"
             role="tab"
             aria-selected={activeTab === 'username'}
             onClick={() => setActiveTab('username')}
-            className={`pb-3 px-3 text-xs font-extrabold border-b-2 flex items-center gap-2 transition ${
+            className={`pb-3 px-2 sm:px-3 text-xs font-extrabold border-b-2 flex items-center gap-1.5 whitespace-nowrap transition focus-visible:ring-2 focus-visible:ring-blue-500 ${
               activeTab === 'username'
                 ? 'border-blue-500 text-blue-400'
                 : 'border-transparent text-slate-400 hover:text-slate-200'
             }`}
           >
-            <User className="w-4 h-4" /> By Username
+            <User className="w-4 h-4 shrink-0" aria-hidden="true" /> By Username
           </button>
 
           <button
+            type="button"
             role="tab"
             aria-selected={activeTab === 'draftId'}
             onClick={() => setActiveTab('draftId')}
-            className={`pb-3 px-3 text-xs font-extrabold border-b-2 flex items-center gap-2 transition ${
+            className={`pb-3 px-2 sm:px-3 text-xs font-extrabold border-b-2 flex items-center gap-1.5 whitespace-nowrap transition focus-visible:ring-2 focus-visible:ring-blue-500 ${
               activeTab === 'draftId'
                 ? 'border-blue-500 text-blue-400'
                 : 'border-transparent text-slate-400 hover:text-slate-200'
             }`}
           >
-            <Hash className="w-4 h-4" /> By Draft ID
+            <Hash className="w-4 h-4 shrink-0" aria-hidden="true" /> By Draft ID
           </button>
         </div>
 

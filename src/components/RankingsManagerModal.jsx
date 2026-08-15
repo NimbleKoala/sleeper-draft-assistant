@@ -75,20 +75,22 @@ export default function RankingsManagerModal({
   };
 
   return (
-    <div className="modal-backdrop">
+    <div className="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="rankings-modal-title">
       <div className="modal-content max-w-3xl">
         <button
+          type="button"
           onClick={onClose}
-          className="absolute top-5 right-5 text-slate-400 hover:text-white p-1.5 rounded-xl hover:bg-slate-800 transition"
+          aria-label="Close rankings manager modal"
+          className="absolute top-4 right-4 sm:top-5 sm:right-5 text-slate-400 hover:text-white p-1.5 rounded-xl hover:bg-slate-800 transition focus-visible:ring-2 focus-visible:ring-blue-500"
         >
-          <X className="w-5 h-5" />
+          <X className="w-5 h-5" aria-hidden="true" />
         </button>
 
         <div className="flex items-center gap-2.5 mb-1">
-          <div className="w-8 h-8 rounded-lg bg-blue-500/10 border border-blue-500/30 flex items-center justify-center">
-            <Database className="w-4 h-4 text-blue-400" />
+          <div className="w-8 h-8 rounded-lg bg-blue-500/10 border border-blue-500/30 flex items-center justify-center shrink-0">
+            <Database className="w-4 h-4 text-blue-400" aria-hidden="true" />
           </div>
-          <h2 className="text-xl font-extrabold text-white">
+          <h2 id="rankings-modal-title" className="text-lg sm:text-xl font-extrabold text-white">
             Server Rankings & Multi-Comparison Manager
           </h2>
         </div>

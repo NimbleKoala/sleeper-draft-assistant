@@ -1,8 +1,10 @@
-import React, { useState, useMemo } from 'react';
-import { Activity, Clock, Grid, List } from 'lucide-react';
+import React, { useState, useMemo, memo } from 'react';
+import { Activity, Clock, Grid, List, Radio } from 'lucide-react';
 import { getTeamStyle } from '../utils/fantasyUtils';
+import EmptyState from './common/EmptyState';
+import { DraftBoardSkeleton } from './common/Skeleton';
 
-export default function DraftBoard({ picks = [], draftInfo }) {
+const DraftBoard = memo(function DraftBoard({ picks = [], draftInfo, isLoading = false, onConnectClick }) {
   const [boardView, setBoardView] = useState('grid'); // 'grid' | 'stream'
 
   const teamsCount = draftInfo?.settings?.teams || 12;
@@ -45,13 +47,28 @@ export default function DraftBoard({ picks = [], draftInfo }) {
     return [...picks].reverse();
   }, [picks]);
 
+  // Loading state
+  if (isLoading) {
+    return (
+      <section className="glass-panel p-5 mb-6 glass-panel-accent" aria-labelledby="draft-board-heading">
+        <DraftBoardSkeleton teams={teamsCount} rounds={4} />
+      </section>
+    );
+  }
+
   // If no draft is connected, render clean empty state card
   if (!draftInfo) {
     return (
-      <div className="glass-panel p-6 text-center text-slate-400 text-xs glass-panel-accent" role="status" aria-live="polite">
-        <Activity className="w-8 h-8 text-slate-600 mx-auto mb-2" />
-        Connect a Sleeper draft to see live pick stream & draft board grid.
-      </div>
+      <section className="glass-panel p-5 mb-6 glass-panel-accent" aria-labelledby="draft-board-heading">
+        <h2 id="draft-board-heading" className="text-base sm:text-lg font-extrabold text-white mb-3">Live Draft Board</h2>
+        <EmptyState
+          icon={Radio}
+          title="No Live Draft Connected"
+          description="Connect to your Sleeper draft to view the real-time pick grid and draft stream, or launch Mock Draft mode."
+          actionLabel={onConnectClick ? "Connect Draft" : undefined}
+          onAction={onConnectClick}
+        />
+      </section>
     );
   }
 
@@ -242,4 +259,6 @@ export default function DraftBoard({ picks = [], draftInfo }) {
       )}
     </section>
   );
-}
+});
+
+export default DraftBoard;
