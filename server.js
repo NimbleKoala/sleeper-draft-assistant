@@ -103,11 +103,10 @@ function writeManifest(manifest) {
   }
 }
 
-// Ensure default ranking dataset is copied to data/rankings/default.csv and indexed in manifest
+// Ensure built-in ranking datasets are present in data/rankings/ and indexed in manifest
 function initializeDefaultRankings() {
   const defaultPath = path.join(RANKINGS_DIR, 'default.csv');
   let content = null;
-  let sourceFileName = 'rankings.csv';
 
   if (fs.existsSync(defaultPath)) {
     content = fs.readFileSync(defaultPath, 'utf-8');
@@ -117,28 +116,58 @@ function initializeDefaultRankings() {
       if (fs.existsSync(csvPath)) {
         content = fs.readFileSync(csvPath, 'utf-8');
         fs.writeFileSync(defaultPath, content, 'utf-8');
-        sourceFileName = path.basename(csvPath);
         break;
       }
     }
   }
 
   let manifest = readManifest();
-  const hasDefault = manifest.some(item => item.id === 'default');
 
-  if (content && (!hasDefault || manifest.length === 0)) {
-    const parsed = parseRankingsCSV(content);
-    const defaultMeta = {
+  // Define standard built-in presets
+  const presets = [
+    {
       id: 'default',
       filename: 'default.csv',
       name: 'Hayden Winks PPR Consensus',
       isDefault: true,
-      count: parsed.length,
-      updatedAt: new Date().toISOString()
-    };
-    manifest = [defaultMeta, ...manifest.filter(m => m.id !== 'default')];
+      isPreset: true
+    },
+    {
+      id: 'nffc_adp',
+      filename: 'NFFC-ADP.csv',
+      name: 'NFFC ADP Rankings (315 Players)',
+      isDefault: false,
+      isPreset: true
+    }
+  ];
+
+  let manifestUpdated = false;
+
+  for (const preset of presets) {
+    const presetPath = path.join(RANKINGS_DIR, preset.filename);
+    if (fs.existsSync(presetPath)) {
+      const existingIdx = manifest.findIndex(m => m.id === preset.id || m.filename === preset.filename);
+      const csvText = fs.readFileSync(presetPath, 'utf-8');
+      const parsed = parseRankingsCSV(csvText);
+
+      const meta = {
+        ...preset,
+        count: parsed.length,
+        updatedAt: existingIdx >= 0 && manifest[existingIdx].updatedAt ? manifest[existingIdx].updatedAt : new Date().toISOString()
+      };
+
+      if (existingIdx >= 0) {
+        manifest[existingIdx] = { ...manifest[existingIdx], ...meta };
+      } else {
+        manifest.push(meta);
+      }
+      manifestUpdated = true;
+    }
+  }
+
+  if (manifestUpdated || manifest.length === 0) {
     writeManifest(manifest);
-    console.log(`Initialized default rankings dataset (${parsed.length} players).`);
+    console.log(`Initialized rankings manifest (${manifest.length} datasets).`);
   }
 }
 
@@ -271,14 +300,14 @@ app.post('/api/rankings/upload', (req, res) => {
 app.delete('/api/rankings/:id', (req, res) => {
   try {
     const { id } = req.params;
-    if (id === 'default') {
-      return res.status(400).json({ error: 'Cannot delete default ranking dataset' });
-    }
-
     let manifest = readManifest();
     const meta = manifest.find(m => m.id === id);
     if (!meta) {
       return res.status(404).json({ error: 'Ranking dataset not found' });
+    }
+
+    if (meta.isDefault || meta.isPreset || ['default', 'nffc_adp'].includes(id)) {
+      return res.status(400).json({ error: 'Cannot delete built-in or default ranking datasets' });
     }
 
     const filePath = path.join(RANKINGS_DIR, meta.filename);
