@@ -28,11 +28,11 @@ const BestAvailableTableRow = memo(function BestAvailableTableRow({
           onClick={() => onToggleStar && onToggleStar(primaryRank)}
           aria-label={isStarred ? `Unstar ${p.player}` : `Star ${p.player} as target`}
           aria-pressed={isStarred}
-          className="p-1 rounded hover:bg-slate-800 transition focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:outline-none"
+          className="p-1 rounded hover:bg-slate-800 transition"
           title={isStarred ? 'Unstar target' : 'Star target'}
         >
           <Star
-            className={`w-4 h-4 ${
+            className={`w-4 h-4 transition ${
               isStarred
                 ? 'fill-amber-400 text-amber-400'
                 : 'text-slate-600 hover:text-slate-400'
@@ -51,9 +51,9 @@ const BestAvailableTableRow = memo(function BestAvailableTableRow({
           <td key={id} className="text-center py-2 px-2">
             {r ? (
               <span
-                className={`inline-block px-2 py-0.5 rounded font-mono font-extrabold text-xs border ${
+                className={`inline-block px-2.5 py-0.5 rounded font-mono font-extrabold text-xs border transition ${
                   isSortActive
-                    ? 'bg-blue-600 text-white border-blue-400 shadow'
+                    ? 'bg-blue-600 text-white border-blue-400 shadow-sm'
                     : 'bg-slate-900 text-slate-300 border-slate-800'
                 }`}
               >
@@ -71,7 +71,7 @@ const BestAvailableTableRow = memo(function BestAvailableTableRow({
         <div className="flex items-center gap-2">
           <span className="font-bold text-white text-xs sm:text-sm">{p.player}</span>
           {p.sleeperDetails?.injuryStatus && (
-            <span className="text-[9px] px-1.5 py-0.2 font-extrabold rounded bg-rose-500/20 text-rose-300 border border-rose-500/30 uppercase shrink-0">
+            <span className="text-[9px] px-1.5 py-0.2 font-mono font-extrabold rounded bg-rose-500/20 text-rose-300 border border-rose-500/30 uppercase shrink-0">
               {p.sleeperDetails.injuryStatus}
             </span>
           )}
@@ -79,14 +79,14 @@ const BestAvailableTableRow = memo(function BestAvailableTableRow({
       </td>
 
       {/* Position Badge */}
-      <td className="py-2 px-2">
+      <td className="py-2 px-2 text-center">
         <span className={`badge-pos badge-pos-${p.position}`}>
           {p.position}
         </span>
       </td>
 
       {/* Team Badge */}
-      <td className="py-2 px-2">
+      <td className="py-2 px-2 text-center">
         <span
           className="text-[10px] sm:text-[11px] font-mono font-extrabold px-1.5 sm:px-2 py-0.5 rounded border inline-block"
           style={{
@@ -119,10 +119,10 @@ const BestAvailableTableRow = memo(function BestAvailableTableRow({
           type="button"
           onClick={() => onToggleManualDrafted(primaryRank)}
           aria-label={isManual ? `Unmark ${p.player} as drafted` : `Mark ${p.player} as drafted`}
-          className={`text-[11px] sm:text-xs font-semibold px-2.5 py-1 sm:py-1.5 rounded-lg border transition focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:outline-none ${
+          className={`text-[11px] sm:text-xs font-semibold px-2.5 py-1 sm:py-1.5 rounded-lg border transition ${
             isManual
               ? 'bg-amber-500/20 text-amber-300 hover:bg-amber-500/30 border-amber-500/40'
-              : 'bg-slate-900 hover:bg-slate-800 text-slate-300 border-slate-700'
+              : 'btn-secondary text-slate-300'
           }`}
         >
           {isManual ? 'Unmark' : 'Drafted'}

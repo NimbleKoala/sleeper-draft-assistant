@@ -179,18 +179,19 @@ export default function DraftConnectModal({ isOpen, onClose, onSelectDraft }) {
     <div className="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="connect-modal-title">
       <div className="modal-content">
         <button
+          type="button"
           onClick={onClose}
           aria-label="Close connect modal"
           className="absolute top-5 right-5 text-slate-400 hover:text-white p-1.5 rounded-xl hover:bg-slate-800 transition"
         >
-          <X className="w-5 h-5" />
+          <X className="w-5 h-5" aria-hidden="true" />
         </button>
 
         <div className="flex items-center gap-2.5 mb-1">
-          <div className="w-8 h-8 rounded-lg bg-blue-500/10 border border-blue-500/30 flex items-center justify-center">
-            <Sparkles className="w-4 h-4 text-blue-400" />
+          <div className="w-8 h-8 rounded-lg bg-blue-500/10 border border-blue-500/30 flex items-center justify-center shrink-0">
+            <Sparkles className="w-4 h-4 text-blue-400" aria-hidden="true" />
           </div>
-          <h2 id="connect-modal-title" className="text-xl font-extrabold text-white">
+          <h2 id="connect-modal-title" className="text-xl font-extrabold text-white tracking-tight">
             Connect Sleeper Draft
           </h2>
         </div>
@@ -205,13 +206,13 @@ export default function DraftConnectModal({ isOpen, onClose, onSelectDraft }) {
             role="tab"
             aria-selected={activeTab === 'recent'}
             onClick={() => setActiveTab('recent')}
-            className={`pb-3 px-2 sm:px-3 text-xs font-extrabold border-b-2 flex items-center gap-1.5 whitespace-nowrap transition focus-visible:ring-2 focus-visible:ring-blue-500 ${
+            className={`pb-3 px-2 sm:px-3 text-xs font-extrabold border-b-2 flex items-center gap-1.5 whitespace-nowrap transition ${
               activeTab === 'recent'
                 ? 'border-blue-500 text-blue-400'
                 : 'border-transparent text-slate-400 hover:text-slate-200'
             }`}
           >
-            <History className="w-4 h-4 shrink-0" aria-hidden="true" /> Recent Drafts
+            <History className="w-4 h-4 shrink-0" aria-hidden="true" /> <span>Recent Drafts</span>
             {recentDrafts.length > 0 && (
               <span className="text-[10px] font-mono px-1.5 py-0.2 rounded-full bg-blue-500/20 text-blue-300">
                 {recentDrafts.length}
@@ -224,13 +225,13 @@ export default function DraftConnectModal({ isOpen, onClose, onSelectDraft }) {
             role="tab"
             aria-selected={activeTab === 'username'}
             onClick={() => setActiveTab('username')}
-            className={`pb-3 px-2 sm:px-3 text-xs font-extrabold border-b-2 flex items-center gap-1.5 whitespace-nowrap transition focus-visible:ring-2 focus-visible:ring-blue-500 ${
+            className={`pb-3 px-2 sm:px-3 text-xs font-extrabold border-b-2 flex items-center gap-1.5 whitespace-nowrap transition ${
               activeTab === 'username'
                 ? 'border-blue-500 text-blue-400'
                 : 'border-transparent text-slate-400 hover:text-slate-200'
             }`}
           >
-            <User className="w-4 h-4 shrink-0" aria-hidden="true" /> By Username
+            <User className="w-4 h-4 shrink-0" aria-hidden="true" /> <span>By Username</span>
           </button>
 
           <button
@@ -238,19 +239,19 @@ export default function DraftConnectModal({ isOpen, onClose, onSelectDraft }) {
             role="tab"
             aria-selected={activeTab === 'draftId'}
             onClick={() => setActiveTab('draftId')}
-            className={`pb-3 px-2 sm:px-3 text-xs font-extrabold border-b-2 flex items-center gap-1.5 whitespace-nowrap transition focus-visible:ring-2 focus-visible:ring-blue-500 ${
+            className={`pb-3 px-2 sm:px-3 text-xs font-extrabold border-b-2 flex items-center gap-1.5 whitespace-nowrap transition ${
               activeTab === 'draftId'
                 ? 'border-blue-500 text-blue-400'
                 : 'border-transparent text-slate-400 hover:text-slate-200'
             }`}
           >
-            <Hash className="w-4 h-4 shrink-0" aria-hidden="true" /> By Draft ID
+            <Hash className="w-4 h-4 shrink-0" aria-hidden="true" /> <span>By Draft ID</span>
           </button>
         </div>
 
         {error && (
           <div className="mb-4 p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs flex items-center gap-2.5" role="alert">
-            <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
+            <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" aria-hidden="true" />
             <span>{error}</span>
           </div>
         )}
@@ -260,7 +261,7 @@ export default function DraftConnectModal({ isOpen, onClose, onSelectDraft }) {
           <div>
             {recentDrafts.length === 0 ? (
               <div className="p-8 text-center text-slate-500 text-xs bg-slate-950/60 rounded-xl border border-slate-800">
-                <History className="w-8 h-8 text-slate-700 mx-auto mb-2" />
+                <History className="w-8 h-8 text-slate-700 mx-auto mb-2" aria-hidden="true" />
                 No saved drafts yet. Click "By Username" to search drafts for <span className="text-blue-300 font-bold">{PREFERRED_USERNAME}</span>!
               </div>
             ) : (
@@ -270,10 +271,11 @@ export default function DraftConnectModal({ isOpen, onClose, onSelectDraft }) {
                     Previously Connected Drafts:
                   </span>
                   <button
+                    type="button"
                     onClick={handleClearHistory}
                     className="text-[11px] text-slate-500 hover:text-rose-400 flex items-center gap-1 transition"
                   >
-                    <Trash2 className="w-3 h-3" /> Clear History
+                    <Trash2 className="w-3 h-3" aria-hidden="true" /> Clear History
                   </button>
                 </div>
 
@@ -298,12 +300,13 @@ export default function DraftConnectModal({ isOpen, onClose, onSelectDraft }) {
                     </div>
 
                     <button
+                      type="button"
                       disabled={loading}
                       aria-label={`Reconnect to draft ${d.name}`}
                       className="btn btn-primary text-xs py-1 px-3 flex items-center gap-1 group-hover:scale-105"
                     >
                       <span>Reconnect</span>
-                      <ArrowRight className="w-3 h-3" />
+                      <ArrowRight className="w-3 h-3" aria-hidden="true" />
                     </button>
                   </div>
                 ))}
@@ -367,7 +370,7 @@ export default function DraftConnectModal({ isOpen, onClose, onSelectDraft }) {
                         <span>{d.settings?.rounds || 15} Rounds</span>
                       </div>
                     </div>
-                    <button className="btn btn-primary text-xs py-1 px-3">
+                    <button type="button" className="btn btn-primary text-xs py-1 px-3">
                       Select
                     </button>
                   </div>

@@ -1,66 +1,73 @@
-/* Hallmark · genre: modern-minimal · macrostructure: Workbench · design-system: design.md · designed-as-app */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap');
+/* Hallmark · genre: modern-minimal · macrostructure: Workbench · theme: tactical-cockpit · pre-emit critique: P5 H5 E5 S5 R5 V5 */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 /* ==========================================================================
-   DESIGN TOKENS & SYSTEM
+   HALLMARK DESIGN TOKENS & SYSTEM
    ========================================================================== */
 :root {
   --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --font-heading: 'Plus Jakarta Sans', var(--font-sans);
   --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, monospace;
 
-  /* Solid Precision Dark Palette */
-  --bg-dark: #080c15;
-  --bg-card: #0e1526;
-  --bg-card-hover: #141e34;
-  --bg-panel: #0b1120;
-  --bg-subtle: #111a2e;
+  /* Solid Tactical Dark Palette */
+  --color-paper: #080c15;
+  --color-paper-2: #0e1526;
+  --color-paper-3: #141f36;
+  --color-paper-subtle: #0b1120;
+  --color-paper-inset: #05080f;
 
-  --border-color: rgba(255, 255, 255, 0.08);
-  --border-subtle: rgba(255, 255, 255, 0.04);
-  --border-active: rgba(59, 130, 246, 0.5);
+  --color-rule: rgba(255, 255, 255, 0.08);
+  --color-rule-subtle: rgba(255, 255, 255, 0.04);
+  --color-rule-hover: rgba(255, 255, 255, 0.16);
+  --color-rule-focus: rgba(59, 130, 246, 0.6);
 
-  --text-main: #f8fafc;
-  --text-muted: #94a3b8;
-  --text-dim: #64748b;
+  --color-ink: #f8fafc;
+  --color-ink-2: #94a3b8;
+  --color-ink-3: #64748b;
 
-  --accent-blue: #3b82f6;
-  --accent-blue-hover: #2563eb;
-  --accent-cyan: #06b6d4;
-  --accent-emerald: #10b981;
-  --accent-amber: #f59e0b;
-  --accent-rose: #f43f5e;
-  --accent-purple: #8b5cf6;
+  --color-accent: #3b82f6;
+  --color-accent-hover: #2563eb;
+  --color-accent-active: #1d4ed8;
+  --color-focus: #60a5fa;
 
-  /* Positional Badges (High-Contrast & Distinct) */
+  --color-emerald: #10b981;
+  --color-emerald-hover: #059669;
+  --color-amber: #f59e0b;
+  --color-amber-hover: #d97706;
+  --color-rose: #f43f5e;
+  --color-purple: #8b5cf6;
+  --color-cyan: #06b6d4;
+
+  /* Positional Badges (High-Contrast, Accessible) */
   --pos-qb-bg: rgba(16, 185, 129, 0.12);
   --pos-qb-text: #34d399;
-  --pos-qb-border: rgba(16, 185, 129, 0.3);
+  --pos-qb-border: rgba(16, 185, 129, 0.35);
 
   --pos-rb-bg: rgba(59, 130, 246, 0.12);
   --pos-rb-text: #60a5fa;
-  --pos-rb-border: rgba(59, 130, 246, 0.3);
+  --pos-rb-border: rgba(59, 130, 246, 0.35);
 
   --pos-wr-bg: rgba(244, 114, 182, 0.12);
   --pos-wr-text: #f472b6;
-  --pos-wr-border: rgba(244, 114, 182, 0.3);
+  --pos-wr-border: rgba(244, 114, 182, 0.35);
 
   --pos-te-bg: rgba(245, 158, 11, 0.12);
   --pos-te-text: #fbbf24;
-  --pos-te-border: rgba(245, 158, 11, 0.3);
+  --pos-te-border: rgba(245, 158, 11, 0.35);
 
   --pos-k-bg: rgba(168, 85, 247, 0.12);
   --pos-k-text: #c084fc;
-  --pos-k-border: rgba(168, 85, 247, 0.3);
+  --pos-k-border: rgba(168, 85, 247, 0.35);
 
   --pos-def-bg: rgba(6, 182, 212, 0.12);
   --pos-def-text: #22d3ee;
-  --pos-def-border: rgba(6, 182, 212, 0.3);
+  --pos-def-border: rgba(6, 182, 212, 0.35);
 
+  --radius-xs: 4px;
   --radius-sm: 6px;
   --radius-md: 10px;
   --radius-lg: 16px;
@@ -70,6 +77,9 @@
   --dur-short: 180ms;
 }
 
+/* ==========================================================================
+   BASE & RESET DISCIPLINES
+   ========================================================================== */
 * {
   box-sizing: border-box;
   margin: 0;
@@ -81,48 +91,49 @@ html, body {
 }
 
 body {
-  background-color: var(--bg-dark);
-  color: var(--text-main);
+  background-color: var(--color-paper);
+  color: var(--color-ink);
   font-family: var(--font-sans);
   min-height: 100vh;
   line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
 }
 
+/* Strict Typography Purity: Roman Only for Headings */
 h1, h2, h3, h4, h5, h6 {
   font-family: var(--font-heading);
-  letter-spacing: -0.02em;
+  letter-spacing: -0.025em;
   font-style: normal;
 }
 
-code, .font-mono, .tabular-nums {
-  font-family: var(--font-mono);
+code, .font-mono, .tabular-nums, table, th, td {
   font-variant-numeric: tabular-nums;
 }
 
-/* Custom Scrollbars */
+/* Tactile Custom Scrollbars */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: var(--bg-dark);
+  background: var(--color-paper);
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.14);
   border-radius: 3px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.28);
 }
 
 /* ==========================================================================
-   PANELS & CARDS (Solid, High-Contrast Surfaces)
+   PANELS & SURFACES (High-Density Workbench)
    ========================================================================== */
 .glass-panel {
-  background: var(--bg-card);
-  border: 1px solid var(--border-color);
+  background: var(--color-paper-2);
+  border: 1px solid var(--color-rule);
   border-radius: var(--radius-md);
-  transition: border-color var(--dur-short) var(--ease-out);
+  transition: border-color var(--dur-short) var(--ease-out), background-color var(--dur-short) var(--ease-out);
 }
 
 .glass-panel-accent {
@@ -130,11 +141,11 @@ code, .font-mono, .tabular-nums {
 }
 
 .glass-panel-hover {
-  transition: background-color var(--dur-short) var(--ease-out), border-color var(--dur-short) var(--ease-out);
+  transition: background-color var(--dur-short) var(--ease-out), border-color var(--dur-short) var(--ease-out), transform var(--dur-short) var(--ease-out);
 }
 .glass-panel-hover:hover {
-  background: var(--bg-card-hover);
-  border-color: rgba(255, 255, 255, 0.16);
+  background: var(--color-paper-3);
+  border-color: var(--color-rule-hover);
 }
 
 /* ==========================================================================
@@ -184,7 +195,7 @@ code, .font-mono, .tabular-nums {
 }
 
 /* ==========================================================================
-   POSITION BADGES & CHIPS
+   POSITION BADGES & PILLS
    ========================================================================== */
 .badge-pos {
   display: inline-flex;
@@ -198,6 +209,7 @@ code, .font-mono, .tabular-nums {
   letter-spacing: 0.04em;
   text-transform: uppercase;
   font-variant-numeric: tabular-nums;
+  line-height: 1;
 }
 
 .badge-pos-QB  { background: var(--pos-qb-bg); color: var(--pos-qb-text); border: 1px solid var(--pos-qb-border); }
@@ -206,9 +218,10 @@ code, .font-mono, .tabular-nums {
 .badge-pos-TE  { background: var(--pos-te-bg); color: var(--pos-te-text); border: 1px solid var(--pos-te-border); }
 .badge-pos-K   { background: var(--pos-k-bg);  color: var(--pos-k-text);  border: 1px solid var(--pos-k-border); }
 .badge-pos-DEF, .badge-pos-DST { background: var(--pos-def-bg); color: var(--pos-def-text); border: 1px solid var(--pos-def-border); }
+.badge-pos-FLEX { background: rgba(139, 92, 246, 0.12); color: #c4b5fd; border: 1px solid rgba(139, 92, 246, 0.35); }
 
 /* ==========================================================================
-   BUTTONS & INPUTS
+   BUTTONS (Full 8-State Interactive Discipline)
    ========================================================================== */
 .btn {
   display: inline-flex;
@@ -222,54 +235,89 @@ code, .font-mono, .tabular-nums {
   border-radius: var(--radius-md);
   border: 1px solid transparent;
   cursor: pointer;
-  transition: background-color var(--dur-short) var(--ease-out), border-color var(--dur-short) var(--ease-out), color var(--dur-short) var(--ease-out);
+  outline: none;
+  transition: background-color var(--dur-short) var(--ease-out),
+              border-color var(--dur-short) var(--ease-out),
+              color var(--dur-short) var(--ease-out),
+              transform var(--dur-short) var(--ease-out),
+              box-shadow var(--dur-short) var(--ease-out);
   white-space: nowrap;
+  user-select: none;
+}
+
+.btn:focus-visible, .btn.is-focus {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+.btn:disabled, .btn[aria-disabled="true"], .btn.is-disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  pointer-events: none;
 }
 
 .btn-primary {
-  background: var(--accent-blue);
+  background: var(--color-accent);
   color: #ffffff;
-  border-color: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.16);
 }
-.btn-primary:hover {
-  background: var(--accent-blue-hover);
+.btn-primary:hover, .btn-primary.is-hover {
+  background: var(--color-accent-hover);
+  border-color: rgba(255, 255, 255, 0.25);
 }
-.btn-primary:active {
-  background: #1d4ed8;
+.btn-primary:active, .btn-primary.is-active {
+  background: var(--color-accent-active);
+  transform: translateY(1px);
 }
 
 .btn-emerald {
   background: #059669;
   color: #ffffff;
-  border-color: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.16);
 }
-.btn-emerald:hover {
+.btn-emerald:hover, .btn-emerald.is-hover {
   background: #047857;
+}
+.btn-emerald:active, .btn-emerald.is-active {
+  background: #065f46;
+  transform: translateY(1px);
 }
 
 .btn-secondary {
-  background: var(--bg-subtle);
-  color: var(--text-main);
-  border: 1px solid var(--border-color);
+  background: var(--color-paper-subtle);
+  color: var(--color-ink);
+  border: 1px solid var(--color-rule);
 }
-.btn-secondary:hover {
-  background: var(--bg-card-hover);
-  border-color: rgba(255, 255, 255, 0.18);
+.btn-secondary:hover, .btn-secondary.is-hover {
+  background: var(--color-paper-3);
+  border-color: var(--color-rule-hover);
+  color: #ffffff;
+}
+.btn-secondary:active, .btn-secondary.is-active {
+  background: var(--color-paper-inset);
+  transform: translateY(1px);
 }
 
+/* ==========================================================================
+   INPUTS & CONTROLS
+   ========================================================================== */
 .input-text {
-  background: var(--bg-panel);
-  border: 1px solid var(--border-color);
+  background: var(--color-paper-subtle);
+  border: 1px solid var(--color-rule);
   border-radius: var(--radius-md);
-  color: #ffffff;
+  color: var(--color-ink);
   padding: 0.5rem 0.75rem;
   font-size: 0.8125rem;
   outline: none;
-  transition: border-color var(--dur-short) var(--ease-out);
+  transition: border-color var(--dur-short) var(--ease-out), background-color var(--dur-short) var(--ease-out);
 }
-.input-text:focus {
-  border-color: var(--accent-blue);
+.input-text:hover {
+  border-color: var(--color-rule-hover);
+}
+.input-text:focus, .input-text:focus-visible {
+  border-color: var(--color-accent);
   background: #0e1628;
+  outline: 2px solid rgba(59, 130, 246, 0.2);
 }
 
 /* Custom Checkbox */
@@ -278,15 +326,22 @@ code, .font-mono, .tabular-nums {
   width: 16px;
   height: 16px;
   border-radius: 4px;
-  background: var(--bg-panel);
+  background: var(--color-paper-subtle);
   border: 1px solid rgba(255, 255, 255, 0.2);
   cursor: pointer;
   position: relative;
   transition: border-color var(--dur-short) var(--ease-out), background-color var(--dur-short) var(--ease-out);
 }
+.custom-checkbox:hover {
+  border-color: rgba(255, 255, 255, 0.35);
+}
+.custom-checkbox:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 1px;
+}
 .custom-checkbox:checked {
-  background: var(--accent-blue);
-  border-color: var(--accent-blue);
+  background: var(--color-accent);
+  border-color: var(--color-accent);
 }
 .custom-checkbox:checked::after {
   content: '';
@@ -301,7 +356,7 @@ code, .font-mono, .tabular-nums {
 }
 
 /* ==========================================================================
-   TABLE STYLING
+   TABLE STYLING (High-Density Tabular Views)
    ========================================================================== */
 table {
   width: 100%;
@@ -310,14 +365,14 @@ table {
 }
 
 th {
-  background: var(--bg-panel);
-  color: var(--text-muted);
+  background: var(--color-paper-subtle);
+  color: var(--color-ink-2);
   font-size: 0.7rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   padding: 0.75rem 0.875rem;
-  border-bottom: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--color-rule);
   position: sticky;
   top: 0;
   z-index: 10;
@@ -326,7 +381,7 @@ th {
 
 td {
   padding: 0.65rem 0.875rem;
-  border-bottom: 1px solid var(--border-subtle);
+  border-bottom: 1px solid var(--color-rule-subtle);
   vertical-align: middle;
   font-variant-numeric: tabular-nums;
 }
@@ -335,21 +390,7 @@ tr.hover-row {
   transition: background-color var(--dur-short) var(--ease-out);
 }
 tr.hover-row:hover td {
-  background: rgba(255, 255, 255, 0.03);
-}
-
-.rank-badge {
-  font-family: var(--font-mono);
-  font-weight: 700;
-  font-size: 0.8125rem;
-  font-variant-numeric: tabular-nums;
-  color: var(--text-muted);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 2rem;
-  padding: 0.15rem 0.35rem;
-  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.035);
 }
 
 /* Status Indicators */
@@ -357,8 +398,9 @@ tr.hover-row:hover td {
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background-color: var(--accent-emerald);
+  background-color: var(--color-emerald);
   display: inline-block;
+  box-shadow: 0 0 8px rgba(16, 185, 129, 0.5);
 }
 
 /* Clean Toast Animation */

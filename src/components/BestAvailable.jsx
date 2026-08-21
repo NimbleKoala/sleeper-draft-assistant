@@ -201,7 +201,7 @@ export default function BestAvailable({
           onAction={resetFilters}
         />
       ) : viewMode === 'table' ? (
-        <div className="overflow-x-auto rounded-2xl border border-slate-800 bg-slate-950/60 shadow-inner max-h-[650px] overflow-y-auto">
+        <div className="overflow-x-auto rounded-2xl border border-slate-800 bg-slate-950/70 shadow-inner max-h-[650px] overflow-y-auto">
           <table className="w-full text-left border-collapse min-w-[650px]">
             <BestAvailableTableHeader
               selectedRankingIds={selectedRankingIds}
@@ -230,7 +230,7 @@ export default function BestAvailable({
                     seenTiers.add(tierInfo.tier);
                     rows.push(
                       <tr key={`tier-${tierInfo.tier}`}>
-                        <td colSpan={6 + selectedRankingIds.length} className={`py-2 px-3 bg-gradient-to-r ${tierInfo.color} border-y text-xs font-extrabold uppercase tracking-wider`}>
+                        <td colSpan={6 + selectedRankingIds.length} className={`py-2 px-3 bg-gradient-to-r ${tierInfo.color} border-y text-xs font-mono font-extrabold uppercase tracking-wider`}>
                           <div className="flex items-center gap-2">
                             <Layers className="w-3.5 h-3.5" aria-hidden="true" />
                             <span>{tierInfo.label}</span>

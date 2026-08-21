@@ -78,10 +78,10 @@ const DraftBoard = memo(function DraftBoard({ picks = [], draftInfo, isLoading =
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 border-b border-slate-800 pb-3">
         <div className="flex items-center gap-2.5">
           <div className="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center shrink-0">
-            <Activity className="w-4.5 h-4.5 text-emerald-400" />
+            <Activity className="w-4.5 h-4.5 text-emerald-400" aria-hidden="true" />
           </div>
           <div>
-            <h3 id="draft-board-heading" className="font-extrabold text-white text-base">Live Draft Board</h3>
+            <h2 id="draft-board-heading" className="font-extrabold text-white text-base">Live Draft Board</h2>
             <p className="text-[11px] text-slate-400">
               {picks.length} of {totalPicks} picks logged
             </p>
@@ -92,22 +92,26 @@ const DraftBoard = memo(function DraftBoard({ picks = [], draftInfo, isLoading =
         <div className="flex items-center gap-2">
           <div className="flex rounded-xl bg-slate-950 p-1 border border-slate-800" role="group" aria-label="Draft Board View Switcher">
             <button
+              type="button"
               onClick={() => setBoardView('grid')}
               aria-label="Switch to Grid Board view"
+              aria-pressed={boardView === 'grid'}
               className={`p-1.5 px-3 rounded-lg text-xs font-bold flex items-center gap-1.5 transition ${
-                boardView === 'grid' ? 'bg-blue-600 text-white shadow' : 'text-slate-400 hover:text-white'
+                boardView === 'grid' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'
               }`}
             >
-              <Grid className="w-3.5 h-3.5" /> Grid Board
+              <Grid className="w-3.5 h-3.5" aria-hidden="true" /> <span>Grid Board</span>
             </button>
             <button
+              type="button"
               onClick={() => setBoardView('stream')}
               aria-label="Switch to Pick Stream view"
+              aria-pressed={boardView === 'stream'}
               className={`p-1.5 px-3 rounded-lg text-xs font-bold flex items-center gap-1.5 transition ${
-                boardView === 'stream' ? 'bg-blue-600 text-white shadow' : 'text-slate-400 hover:text-white'
+                boardView === 'stream' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'
               }`}
             >
-              <List className="w-3.5 h-3.5" /> Pick Stream
+              <List className="w-3.5 h-3.5" aria-hidden="true" /> <span>Pick Stream</span>
             </button>
           </div>
         </div>
@@ -115,9 +119,9 @@ const DraftBoard = memo(function DraftBoard({ picks = [], draftInfo, isLoading =
 
       {/* Current Pick Indicator Banner */}
       {currentPickNo <= totalPicks && draftInfo.status === 'drafting' && (
-        <div className="mb-4 p-3 rounded-xl bg-emerald-950/50 border border-emerald-500/40 flex items-center justify-between gap-3 text-xs shadow-lg" role="region" aria-label="On The Clock Status">
+        <div className="mb-4 p-3 rounded-xl bg-emerald-950/60 border border-emerald-500/40 flex items-center justify-between gap-3 text-xs shadow-md" role="region" aria-label="On The Clock Status">
           <div className="flex items-center gap-2.5">
-            <Clock className="w-4 h-4 text-emerald-400 animate-pulse shrink-0" />
+            <Clock className="w-4 h-4 text-emerald-400 animate-pulse shrink-0" aria-hidden="true" />
             <div>
               <span className="text-slate-400">ON THE CLOCK:</span>{' '}
               <span className="font-extrabold text-emerald-300 font-mono text-sm">
@@ -125,7 +129,7 @@ const DraftBoard = memo(function DraftBoard({ picks = [], draftInfo, isLoading =
               </span>
             </div>
           </div>
-          <span className="text-[10px] font-extrabold px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 uppercase">
+          <span className="text-[10px] font-mono font-extrabold px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 uppercase">
             Live
           </span>
         </div>
@@ -134,11 +138,11 @@ const DraftBoard = memo(function DraftBoard({ picks = [], draftInfo, isLoading =
       {/* View Content */}
       {boardView === 'grid' ? (
         /* Full Grid Draft Board */
-        <div className="overflow-x-auto rounded-xl border border-slate-800 bg-slate-950/70 p-2 max-h-[420px] overflow-y-auto" role="region" aria-label="Draft Grid Matrix">
+        <div className="overflow-x-auto rounded-xl border border-slate-800 bg-slate-950/80 p-2 max-h-[420px] overflow-y-auto scrollbar-thin" role="region" aria-label="Draft Grid Matrix">
           <div className="min-w-[700px]">
             {/* Team Headers */}
             <div className="grid gap-1 mb-1.5" style={{ gridTemplateColumns: `40px repeat(${teamsCount}, minmax(0, 1fr))` }}>
-              <div className="text-[10px] font-bold text-slate-500 text-center py-1">Rd</div>
+              <div className="text-[10px] font-mono font-bold text-slate-500 text-center py-1">Rd</div>
               {Array.from({ length: teamsCount }, (_, i) => i + 1).map(slot => (
                 <div key={slot} className="text-[10px] font-bold text-slate-300 text-center py-1 bg-slate-900/80 rounded border border-slate-800">
                   Slot {slot}
@@ -163,15 +167,15 @@ const DraftBoard = memo(function DraftBoard({ picks = [], draftInfo, isLoading =
                       key={slot}
                       className={`p-1.5 rounded border text-[10px] flex flex-col justify-between h-14 transition ${
                         isCurrent
-                          ? 'border-emerald-400 bg-emerald-950/50 shadow-md shadow-emerald-500/20 animate-pulse'
+                          ? 'border-emerald-400 bg-emerald-950/60 shadow-md shadow-emerald-500/20 animate-pulse'
                           : pickObj
-                          ? `badge-pos-${pos} opacity-90`
+                          ? `badge-pos-${pos} opacity-95`
                           : 'bg-slate-950/40 border-slate-800/80 text-slate-600'
                       }`}
                     >
                       <div className="flex items-center justify-between">
                         <span className="font-mono text-[9px] opacity-75">#{pickNo}</span>
-                        {pos && <span className="font-mono font-bold text-[8px] uppercase">{pos}</span>}
+                        {pos && <span className="font-mono font-extrabold text-[8px] uppercase">{pos}</span>}
                       </div>
 
                       {pickObj ? (
@@ -192,7 +196,7 @@ const DraftBoard = memo(function DraftBoard({ picks = [], draftInfo, isLoading =
         /* Stream List View */
         <div>
           {picks.length === 0 ? (
-            <div className="p-6 text-center text-slate-500 text-xs">
+            <div className="p-6 text-center text-slate-500 text-xs bg-slate-950/60 rounded-xl border border-slate-800">
               Draft has not started yet or no picks logged so far.
             </div>
           ) : (
@@ -207,7 +211,7 @@ const DraftBoard = memo(function DraftBoard({ picks = [], draftInfo, isLoading =
                 return (
                   <li
                     key={pNo}
-                    className="p-2.5 rounded-xl bg-slate-950/80 border border-slate-800/90 flex items-center justify-between gap-3 text-xs hover:border-slate-700 transition"
+                    className="p-2.5 rounded-xl bg-slate-950/80 border border-slate-800 flex items-center justify-between gap-3 text-xs hover:border-slate-700 transition"
                   >
                     {/* Pick Info */}
                     <div className="flex items-center gap-3">

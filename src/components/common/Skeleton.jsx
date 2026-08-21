@@ -1,7 +1,7 @@
 import React from 'react';
 
 /**
- * Skeleton pulse building blocks adhering to Tailwind CSS tokens
+ * Skeleton pulse building blocks adhering to Hallmark CSS tokens
  */
 export function Skeleton({ className = '', style = {} }) {
   return (
@@ -21,7 +21,7 @@ export function BestAvailableSkeleton({ viewMode = 'table', rows = 8 }) {
     return (
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3" aria-busy="true" aria-label="Loading players">
         {Array.from({ length: 6 }).map((_, i) => (
-          <div key={i} className="glass-panel p-3.5 flex flex-col justify-between h-40">
+          <div key={i} className="glass-panel p-4 flex flex-col justify-between h-40">
             <div>
               <div className="flex items-center justify-between mb-3">
                 <Skeleton className="h-5 w-24 rounded-full" />
@@ -41,7 +41,7 @@ export function BestAvailableSkeleton({ viewMode = 'table', rows = 8 }) {
   }
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-950/60" aria-busy="true" aria-label="Loading rankings table">
+    <div className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-950/70" aria-busy="true" aria-label="Loading rankings table">
       <div className="p-3 bg-slate-900/90 border-b border-slate-800 flex items-center justify-between">
         <Skeleton className="h-6 w-32 rounded" />
         <Skeleton className="h-6 w-48 rounded" />
@@ -72,7 +72,7 @@ export function DraftBoardSkeleton({ teams = 12, rounds = 3 }) {
         <Skeleton className="h-6 w-40 rounded" />
         <Skeleton className="h-6 w-24 rounded-full" />
       </div>
-      <div className="grid grid-cols-4 sm:grid-cols-6 lg:grid-cols-12 gap-1.5 overflow-x-auto p-2 bg-slate-950/60 rounded-2xl border border-slate-800">
+      <div className="grid grid-cols-4 sm:grid-cols-6 lg:grid-cols-12 gap-1.5 overflow-x-auto p-2 bg-slate-950/70 rounded-2xl border border-slate-800">
         {Array.from({ length: teams * rounds }).map((_, i) => (
           <div key={i} className="h-16 bg-slate-900/80 rounded-xl p-2 flex flex-col justify-between border border-slate-800/50">
             <Skeleton className="h-3 w-8 rounded" />
