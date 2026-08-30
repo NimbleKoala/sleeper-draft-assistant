@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { Clock, RotateCcw, Sparkles, UserPlus, Search, Download, Settings, Trash2, CheckCircle2, ChevronRight, AlertTriangle } from 'lucide-react';
 import { calculatePickDetails } from '../utils/manualDraftUtils';
-import { getTeamStyle } from '../utils/fantasyUtils';
+import { getTeamStyle, normalizePlayerName } from '../utils/fantasyUtils';
 
 export default function ManualDraftControls({
   draftInfo,
@@ -46,24 +46,62 @@ export default function ManualDraftControls({
     };
   }, [currentPickDetails, draftInfo]);
 
+  // Comprehensive lookup map for picks across multiple keys
+  const picksMap = useMemo(() => {
+    const map = new Map();
+    picks.forEach(p => {
+      const meta = p.metadata || {};
+      const fullName = (meta.player_name || `${meta.first_name || ''} ${meta.last_name || ''}`).trim();
+      const norm1 = meta.normalized_name || normalizePlayerName(fullName);
+      const norm2 = normalizePlayerName(`${meta.first_name || ''} ${meta.last_name || ''}`);
+      const pos = (meta.position || '').toUpperCase();
+      const team = (meta.team || '').toUpperCase();
+
+      if (norm1) {
+        map.set(norm1, p);
+        if (pos) map.set(`${norm1}_${pos}`, p);
+      }
+      if (norm2) {
+        map.set(norm2, p);
+        if (pos) map.set(`${norm2}_${pos}`, p);
+      }
+      if (fullName) {
+        map.set(fullName.toLowerCase().trim(), p);
+      }
+      if (p.player_id) {
+        map.set(String(p.player_id), p);
+      }
+      if (pos === 'DEF' && team) {
+        map.set(`DEF_${team}`, p);
+        map.set(`${team}_DEF`, p);
+      }
+    });
+    return map;
+  }, [picks]);
+
   // Filter unpicked players for quick search & next best available
   const availablePlayers = useMemo(() => {
     if (!rankings || rankings.length === 0) return [];
-    
-    // Set of picked player IDs or normalized names from picks array
-    const pickedNames = new Set();
-    picks.forEach(p => {
-      const meta = p.metadata || {};
-      const norm = (meta.first_name + ' ' + meta.last_name).toLowerCase().replace(/[^a-z0-9]/g, '');
-      if (norm) pickedNames.add(norm);
-    });
 
     return rankings.filter(p => {
-      const isManual = manualDraftedIds.has(p.rank);
-      const isPicked = p.isPicked || isManual || pickedNames.has(p.normalizedName || p.player.toLowerCase().replace(/[^a-z0-9]/g, ''));
+      const norm = p.normalizedName || normalizePlayerName(p.player);
+      const pos = (p.position || '').toUpperCase();
+      const team = (p.team || '').toUpperCase();
+      const rawLower = (p.player || '').toLowerCase().trim();
+
+      const isPicked = Boolean(
+        p.isPicked ||
+        manualDraftedIds.has(p.rank) ||
+        (p.sleeperId && picksMap.has(String(p.sleeperId))) ||
+        (pos && picksMap.has(`${norm}_${pos}`)) ||
+        picksMap.has(norm) ||
+        picksMap.has(rawLower) ||
+        (pos === 'DEF' && team && (picksMap.has(`DEF_${team}`) || picksMap.has(`${team}_DEF`)))
+      );
+
       return !isPicked;
     });
-  }, [rankings, picks, manualDraftedIds]);
+  }, [rankings, picksMap, manualDraftedIds]);
 
   const searchResults = useMemo(() => {
     if (!quickSearch.trim()) return availablePlayers.slice(0, 6);

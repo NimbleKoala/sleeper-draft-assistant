@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Layers, SearchX } from 'lucide-react';
-import { calculateTier } from '../utils/fantasyUtils';
+import { calculateTier, normalizePlayerName } from '../utils/fantasyUtils';
 import BestAvailableFilters from './BestAvailable/BestAvailableFilters';
 import BestAvailableTableHeader from './BestAvailable/BestAvailableTableHeader';
 import BestAvailableTableRow from './BestAvailable/BestAvailableTableRow';
@@ -59,17 +59,54 @@ export default function BestAvailable({
     return activeSortKey.rankingId || selectedRankingIds[0] || 'default';
   }, [activeSortKey, selectedRankingIds]);
 
-  // Build lookup map for picks (by normalized name and sleeper ID)
+  // Build comprehensive lookup map for picks across multiple keys
   const picksMap = useMemo(() => {
     const map = new Map();
     picks.forEach(p => {
       const meta = p.metadata || {};
-      const norm = (meta.first_name + ' ' + meta.last_name).toLowerCase().replace(/[^a-z0-9]/g, '');
-      if (norm) map.set(norm, p);
-      if (p.player_id) map.set(p.player_id, p);
+      const fullName = (meta.player_name || `${meta.first_name || ''} ${meta.last_name || ''}`).trim();
+      const norm1 = meta.normalized_name || normalizePlayerName(fullName);
+      const norm2 = normalizePlayerName(`${meta.first_name || ''} ${meta.last_name || ''}`);
+      const pos = (meta.position || '').toUpperCase();
+      const team = (meta.team || '').toUpperCase();
+
+      if (norm1) {
+        map.set(norm1, p);
+        if (pos) map.set(`${norm1}_${pos}`, p);
+      }
+      if (norm2) {
+        map.set(norm2, p);
+        if (pos) map.set(`${norm2}_${pos}`, p);
+      }
+      if (fullName) {
+        map.set(fullName.toLowerCase().trim(), p);
+      }
+      if (p.player_id) {
+        map.set(String(p.player_id), p);
+      }
+      if (pos === 'DEF' && team) {
+        map.set(`DEF_${team}`, p);
+        map.set(`${team}_DEF`, p);
+      }
     });
     return map;
   }, [picks]);
+
+  // Helper to find pick object for a player
+  const findPickForPlayer = (p) => {
+    const norm = p.normalizedName || normalizePlayerName(p.player);
+    const pos = (p.position || '').toUpperCase();
+    const team = (p.team || '').toUpperCase();
+    const rawLower = (p.player || '').toLowerCase().trim();
+
+    return (p.sleeperId && picksMap.get(String(p.sleeperId))) ||
+           (pos && picksMap.get(`${norm}_${pos}`)) ||
+           picksMap.get(norm) ||
+           picksMap.get(rawLower) ||
+           (pos === 'DEF' && team && (picksMap.get(`DEF_${team}`) || picksMap.get(`${team}_DEF`))) ||
+           p.pickInfo ||
+           null;
+  };
 
   // Compute unified multi-ranking player list
   const combinedPlayerList = useMemo(() => {
@@ -78,13 +115,15 @@ export default function BestAvailable({
     const playerMap = new Map();
 
     rankings.forEach(p => {
-      const key = p.normalizedName || p.player.toLowerCase().replace(/[^a-z0-9]/g, '');
-      const pickObj = picksMap.get(key) || (p.sleeperId && picksMap.get(p.sleeperId)) || p.pickInfo;
+      const norm = p.normalizedName || normalizePlayerName(p.player);
+      const key = norm || p.player.toLowerCase().trim();
+      const pickObj = findPickForPlayer(p);
       const isDraftedInPicks = !!pickObj;
 
       playerMap.set(key, {
         ...p,
-        isPicked: p.isPicked || isDraftedInPicks,
+        normalizedName: norm,
+        isPicked: Boolean(p.isPicked || isDraftedInPicks),
         pickInfo: pickObj || p.pickInfo,
         ranks: { [selectedRankingIds[0] || 'default']: p.rank }
       });
@@ -95,8 +134,9 @@ export default function BestAvailable({
       if (!dataset || !dataset.rankingsWithDraftStatus) return;
 
       dataset.rankingsWithDraftStatus.forEach(p => {
-        const key = p.normalizedName || p.player.toLowerCase().replace(/[^a-z0-9]/g, '');
-        const pickObj = picksMap.get(key) || (p.sleeperId && picksMap.get(p.sleeperId)) || p.pickInfo;
+        const norm = p.normalizedName || normalizePlayerName(p.player);
+        const key = norm || p.player.toLowerCase().trim();
+        const pickObj = findPickForPlayer(p);
         const isDraftedInPicks = !!pickObj;
 
         if (playerMap.has(key)) {
@@ -109,7 +149,8 @@ export default function BestAvailable({
         } else {
           playerMap.set(key, {
             ...p,
-            isPicked: p.isPicked || isDraftedInPicks,
+            normalizedName: norm,
+            isPicked: Boolean(p.isPicked || isDraftedInPicks),
             pickInfo: pickObj || p.pickInfo,
             ranks: { [id]: p.rank }
           });
@@ -139,7 +180,7 @@ export default function BestAvailable({
     combinedPlayerList.forEach(p => {
       const primaryRank = p.ranks[selectedRankingIds[0]] || p.rank || 999;
       const isManual = manualDraftedIds.has(primaryRank);
-      const isPicked = p.isPicked || isManual;
+      const isPicked = Boolean(p.isPicked || isManual);
       if (hidePicked && isPicked) return;
 
       const pos = (p.position || '').toUpperCase();
@@ -155,7 +196,7 @@ export default function BestAvailable({
     return combinedPlayerList.filter(p => {
       const primaryRank = p.ranks[selectedRankingIds[0]] || p.rank || 999;
       const isManual = manualDraftedIds.has(primaryRank);
-      const isPicked = p.isPicked || isManual;
+      const isPicked = Boolean(p.isPicked || isManual);
       const isStarred = starredIds.has(primaryRank);
 
       if (hidePicked && isPicked) return false;
@@ -252,7 +293,7 @@ export default function BestAvailable({
                   const primaryRank = p.ranks[selectedRankingIds[0]] ?? p.rank ?? 999;
 
                   const isManual = manualDraftedIds.has(primaryRank);
-                  const isPicked = p.isPicked || isManual;
+                  const isPicked = Boolean(p.isPicked || isManual);
                   const isStarred = starredIds.has(primaryRank);
                   
                   const tierInfo = calculateTier(activeRank);
@@ -301,7 +342,7 @@ export default function BestAvailable({
           {filteredPlayers.map((p) => {
             const primaryRank = p.ranks[selectedRankingIds[0]] || p.rank || 999;
             const isManual = manualDraftedIds.has(primaryRank);
-            const isPicked = p.isPicked || isManual;
+            const isPicked = Boolean(p.isPicked || isManual);
             const isStarred = starredIds.has(primaryRank);
 
             return (

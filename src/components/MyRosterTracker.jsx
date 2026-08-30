@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, memo } from 'react';
 import { UserCheck, Award, Sparkles, AlertCircle, ChevronRight, ShieldCheck } from 'lucide-react';
-import { getTeamStyle } from '../utils/fantasyUtils';
+import { getTeamStyle, normalizePlayerName } from '../utils/fantasyUtils';
 import { getStoredUsername, PREFERRED_USERNAME } from './DraftConnectModal';
 import EmptyState from './common/EmptyState';
 
@@ -119,9 +119,26 @@ const MyRosterTracker = memo(function MyRosterTracker({ draftInfo, picks = [], r
       if (posCounts.TE === 0 && totalPicks >= 4) neededPosList.push('TE');
       if (posCounts.QB === 0 && totalPicks >= 4) neededPosList.push('QB');
 
+      const pickedLookup = new Set();
+      picks.forEach(p => {
+        const meta = p.metadata || {};
+        const fullName = (meta.player_name || `${meta.first_name || ''} ${meta.last_name || ''}`).trim();
+        const norm = meta.normalized_name || normalizePlayerName(fullName);
+        if (norm) pickedLookup.add(norm);
+        if (fullName) pickedLookup.add(fullName.toLowerCase().trim());
+        if (p.player_id) pickedLookup.add(String(p.player_id));
+      });
+
       const unpicked = rankings.filter(p => {
-        const isManual = manualDraftedIds.has(p.rank);
-        return !p.isPicked && !isManual;
+        const norm = p.normalizedName || normalizePlayerName(p.player);
+        const rawLower = (p.player || '').toLowerCase().trim();
+        const isPicked = p.isPicked ||
+                         manualDraftedIds.has(p.rank) ||
+                         (p.sleeperId && pickedLookup.has(String(p.sleeperId))) ||
+                         pickedLookup.has(norm) ||
+                         pickedLookup.has(rawLower);
+
+        return !isPicked;
       });
 
       for (const pos of neededPosList) {
@@ -133,7 +150,7 @@ const MyRosterTracker = memo(function MyRosterTracker({ draftInfo, picks = [], r
     }
 
     return { adviceList, recommendedPlayers };
-  }, [posCounts, myPicks, rankings, manualDraftedIds]);
+  }, [posCounts, myPicks, picks, rankings, manualDraftedIds]);
 
   return (
     <section className="glass-panel p-5 mb-6 glass-panel-accent" aria-labelledby="roster-tracker-heading">

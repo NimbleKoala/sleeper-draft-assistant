@@ -118,7 +118,7 @@ const BestAvailableCard = memo(function BestAvailableCard({
           {isPicked ? (
             <>
               <XCircle className="w-3.5 h-3.5" aria-hidden="true" />
-              <span>{p.pickInfo ? `Pick #${p.pickInfo.pick_no}` : 'Drafted'}</span>
+              <span>{p.pickInfo ? `Picked #${p.pickInfo.pick_no}` : 'Drafted'}</span>
             </>
           ) : (
             <>

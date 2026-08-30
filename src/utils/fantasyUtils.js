@@ -49,3 +49,14 @@ export function calculateTier(rank) {
   if (rank <= 144) return { tier: 7, label: 'Tier 7 • Bench Depth & Sleepers (Rounds 9-12)', color: 'from-orange-500/20 to-amber-500/10 text-orange-300 border-orange-500/30' };
   return { tier: 8, label: 'Tier 8 • Late Round Fliers & Handcuffs (145+)', color: 'from-slate-700/20 to-slate-800/10 text-slate-400 border-slate-700/30' };
 }
+
+/**
+ * Normalizes player names across all sources, stripping punctuation and suffixes.
+ */
+export function normalizePlayerName(name) {
+  if (!name) return '';
+  return name
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '') // remove spaces, dots, apostrophes, hyphens, commas
+    .replace(/(jr|sr|iii|ii|iv|v)$/g, ''); // remove common name suffixes
+}

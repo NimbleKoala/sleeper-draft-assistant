@@ -9,6 +9,7 @@ import ManualDraftSettingsModal from './components/ManualDraftSettingsModal';
 import ExportDraftModal from './components/ExportDraftModal';
 import RankingsManagerModal from './components/RankingsManagerModal';
 import { AlertCircle, CheckCircle, Info } from 'lucide-react';
+import { normalizePlayerName } from './utils/fantasyUtils';
 import {
   getStoredManualDraft,
   saveStoredManualDraft,
@@ -318,9 +319,11 @@ export default function App() {
     const teamName = teamUser?.display_name || `Team ${pickDetails.slot}`;
 
     // Split player name
-    const nameParts = (player.player || '').trim().split(/\s+/);
+    const rawPlayerName = (player.player || '').trim();
+    const nameParts = rawPlayerName.split(/\s+/);
     const firstName = nameParts[0] || '';
     const lastName = nameParts.slice(1).join(' ') || '';
+    const normName = player.normalizedName || normalizePlayerName(rawPlayerName);
 
     const newPick = {
       pick_no: nextPickNo,
@@ -329,10 +332,12 @@ export default function App() {
       roster_id: pickDetails.slot,
       picked_by: teamUser?.user_id || `manual_user_${pickDetails.slot}`,
       picked_by_name: teamName,
-      player_id: player.sleeperId || `manual_${player.rank}_${player.normalizedName || Date.now()}`,
+      player_id: player.sleeperId || `manual_${normName}_${player.rank || nextPickNo}`,
       metadata: {
         first_name: firstName,
         last_name: lastName,
+        player_name: rawPlayerName,
+        normalized_name: normName,
         position: player.position,
         team: player.team
       }
@@ -345,7 +350,7 @@ export default function App() {
       saveStoredManualDraft({ draftInfo, picks: updatedPicks });
     }
 
-    showNotification(`Drafted ${player.player} to ${teamName} (Pick #${nextPickNo})`, 'success');
+    showNotification(`Drafted ${rawPlayerName} to ${teamName} (Pick #${nextPickNo})`, 'success');
   }, [draftInfo, picks]);
 
   // Undo Last Pick in Manual Draft

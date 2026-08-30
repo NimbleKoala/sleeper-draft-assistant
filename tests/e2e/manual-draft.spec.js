@@ -74,7 +74,7 @@ test.describe('Manually Entered Draft Mode', () => {
     await expect(cockpit).toContainText('Round 1, Pick 1 (#1)');
 
     // Click Draft on the first available player
-    const firstDraftBtn = page.locator('tbody tr button:has-text("Draft"), .glass-panel button:has-text("Draft")').first();
+    const firstDraftBtn = page.locator('section[aria-labelledby="best-available-heading"] tbody tr button:has-text("Draft"), section[aria-labelledby="best-available-heading"] button:has-text("Draft")').first();
     await expect(firstDraftBtn).toBeVisible();
     await firstDraftBtn.click();
 
@@ -94,6 +94,50 @@ test.describe('Manually Entered Draft Mode', () => {
     await expect(cockpit).toContainText('Round 1, Pick 1 (#1)');
   });
 
+  test('should immediately remove drafted player from Best Available list when Hide Drafted is checked', async ({ page }) => {
+    // Start manual draft
+    const connectBtn = page.locator('button:has-text("Connect Draft")').first();
+    await connectBtn.click();
+    await page.locator('button[role="tab"]:has-text("Manual Draft")').click();
+    await page.locator('button:has-text("Start Manual Draft")').click();
+
+    // Search for a specific player (e.g. Kenneth Walker or Gibbs)
+    const searchInput = page.locator('input[aria-label="Search players by name, team, or position"]');
+    await searchInput.fill('Gibbs');
+
+    // Verify Jahmyr Gibbs is present in Best Available section
+    const bestAvailableSection = page.locator('section[aria-labelledby="best-available-heading"]');
+    const gibbsRow = bestAvailableSection.locator('tbody tr:has-text("Jahmyr Gibbs"), div.glass-panel:has-text("Jahmyr Gibbs")').first();
+    await expect(gibbsRow).toBeVisible();
+
+    // Click Draft on Gibbs
+    const draftBtn = gibbsRow.locator('button:has-text("Draft")');
+    await draftBtn.click();
+
+    // Gibbs should be immediately removed from Best Available list (since Hide Drafted is on by default)
+    await expect(gibbsRow).not.toBeVisible();
+
+    // Clear search
+    await searchInput.fill('');
+
+    // Quick search in manual draft cockpit for another player (e.g. Kenneth Walker)
+    const quickInput = page.locator('input[aria-label="Quick search and draft player"]');
+    await quickInput.fill('Walker');
+    await page.keyboard.press('Enter');
+
+    // Search in Best Available table for Walker
+    await searchInput.fill('Kenneth Walker');
+    const walkerRow = bestAvailableSection.locator('tbody tr:has-text("Walker"), div.glass-panel:has-text("Walker")').first();
+    await expect(walkerRow).not.toBeVisible();
+
+    // Uncheck Hide Drafted to verify they appear with drafted line-through status
+    const hideDraftedCheckbox = page.locator('input[aria-label="Hide drafted players"]');
+    await hideDraftedCheckbox.uncheck();
+
+    await expect(walkerRow).toBeVisible();
+    await expect(walkerRow).toContainText('Picked #2');
+  });
+
   test('should open export modal and allow downloading CSV and copying summary', async ({ page }) => {
     // Start manual draft
     const connectBtn = page.locator('button:has-text("Connect Draft")').first();
@@ -102,7 +146,7 @@ test.describe('Manually Entered Draft Mode', () => {
     await page.locator('button:has-text("Start Manual Draft")').click();
 
     // Make 1 pick
-    const firstDraftBtn = page.locator('tbody tr button:has-text("Draft")').first();
+    const firstDraftBtn = page.locator('section[aria-labelledby="best-available-heading"] tbody tr button:has-text("Draft")').first();
     if (await firstDraftBtn.isVisible()) {
       await firstDraftBtn.click();
     }
