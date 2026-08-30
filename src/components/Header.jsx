@@ -1,5 +1,5 @@
 import React from 'react';
-import { RefreshCw, Radio, Database, Zap, PlayCircle, ShieldCheck, CheckCircle2 } from 'lucide-react';
+import { RefreshCw, Radio, Database, Zap, PlayCircle, Edit3, Sparkles } from 'lucide-react';
 
 export default function Header({
   draftInfo,
@@ -10,13 +10,24 @@ export default function Header({
   onOpenConnectModal,
   onOpenRankingsModal,
   onStartDemoMode,
+  onOpenManualModal,
   isDemoMode
 }) {
+  const isManualDraft = !!draftInfo?.isManualDraft;
+
   const getStatusBadge = (status) => {
     if (isDemoMode) {
       return (
         <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-mono font-extrabold rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/40">
           <PlayCircle className="w-3 h-3 text-purple-400" aria-hidden="true" /> MOCK DRAFT MODE
+        </span>
+      );
+    }
+
+    if (isManualDraft) {
+      return (
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-mono font-extrabold rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40">
+          <Edit3 className="w-3 h-3 text-amber-400" aria-hidden="true" /> MANUAL DRAFT
         </span>
       );
     }
@@ -77,7 +88,7 @@ export default function Header({
           <div className="flex items-center gap-3 text-xs">
             <div className="flex flex-col">
               <span className="text-[10px] text-slate-400 font-extrabold uppercase tracking-wider">
-                Connected Draft
+                {isManualDraft ? 'Manual Session' : 'Connected Draft'}
               </span>
               <span className="font-bold text-white max-w-[170px] truncate">
                 {draftInfo.metadata?.name || `Draft #${draftInfo.draft_id}`}
@@ -106,15 +117,26 @@ export default function Header({
 
         <div className="flex items-center gap-2">
           {!draftInfo && !isDemoMode && (
-            <button
-              type="button"
-              onClick={onStartDemoMode}
-              className="btn btn-secondary text-xs py-1 px-2.5 text-purple-300 hover:text-purple-200 border-purple-500/30"
-              title="Test assistant in offline mock mode"
-            >
-              <PlayCircle className="w-3.5 h-3.5 text-purple-400" aria-hidden="true" />
-              <span>Demo</span>
-            </button>
+            <>
+              <button
+                type="button"
+                onClick={onOpenManualModal}
+                className="btn btn-secondary text-xs py-1 px-2.5 text-amber-300 hover:text-amber-200 border-amber-500/30"
+                title="Create a manually entered offline draft"
+              >
+                <Edit3 className="w-3.5 h-3.5 text-amber-400" aria-hidden="true" />
+                <span>Manual</span>
+              </button>
+              <button
+                type="button"
+                onClick={onStartDemoMode}
+                className="btn btn-secondary text-xs py-1 px-2.5 text-purple-300 hover:text-purple-200 border-purple-500/30"
+                title="Test assistant in offline mock mode"
+              >
+                <PlayCircle className="w-3.5 h-3.5 text-purple-400" aria-hidden="true" />
+                <span>Demo</span>
+              </button>
+            </>
           )}
 
           <button 
@@ -143,21 +165,23 @@ export default function Header({
           </span>
         </button>
 
-        <button
-          type="button"
-          onClick={onRefreshPicks}
-          disabled={!draftInfo || isRefreshing}
-          aria-label="Sync draft picks from Sleeper"
-          className="btn btn-emerald text-xs py-1.5 px-3 min-h-[36px] flex items-center justify-center gap-2 flex-1 sm:flex-none disabled:opacity-40 disabled:cursor-not-allowed"
-        >
-          <RefreshCw className={`w-3.5 h-3.5 shrink-0 ${isRefreshing ? 'animate-spin' : ''}`} aria-hidden="true" />
-          <span>Sync Picks</span>
-          {lastRefreshed && (
-            <span className="text-[10px] opacity-75 font-mono ml-1 hidden xs:inline">
-              ({lastRefreshed})
-            </span>
-          )}
-        </button>
+        {!isManualDraft && (
+          <button
+            type="button"
+            onClick={onRefreshPicks}
+            disabled={!draftInfo || isRefreshing}
+            aria-label="Sync draft picks from Sleeper"
+            className="btn btn-emerald text-xs py-1.5 px-3 min-h-[36px] flex items-center justify-center gap-2 flex-1 sm:flex-none disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 shrink-0 ${isRefreshing ? 'animate-spin' : ''}`} aria-hidden="true" />
+            <span>Sync Picks</span>
+            {lastRefreshed && (
+              <span className="text-[10px] opacity-75 font-mono ml-1 hidden xs:inline">
+                ({lastRefreshed})
+              </span>
+            )}
+          </button>
+        )}
       </div>
     </header>
   );

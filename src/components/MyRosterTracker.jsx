@@ -36,20 +36,27 @@ const MyRosterTracker = memo(function MyRosterTracker({ draftInfo, picks = [], r
     return list.sort((a, b) => a.slot - b.slot);
   }, [draftInfo]);
 
-  // Automatically detect & jump to NimbleKoala's draft slot on connect
+  // Automatically detect & jump to user's draft slot on connect
   useEffect(() => {
-    if (draftInfo && draftInfo.users && draftInfo.draft_order) {
-      const preferredUsername = (getStoredUsername() || PREFERRED_USERNAME).toLowerCase();
+    if (draftInfo) {
+      if (draftInfo.myDraftSlot) {
+        setSelectedSlot(Number(draftInfo.myDraftSlot));
+        return;
+      }
+      if (draftInfo.users && draftInfo.draft_order) {
+        const preferredUsername = (getStoredUsername() || PREFERRED_USERNAME).toLowerCase();
 
-      // Find user matching NimbleKoala by username, display_name, or user_id
-      const myUser = draftInfo.users.find(u => 
-        (u.username && u.username.toLowerCase() === preferredUsername) ||
-        (u.display_name && u.display_name.toLowerCase() === preferredUsername)
-      ) || draftInfo.users.find(u => u.user_id === draftInfo.user_id);
+        // Find user matching NimbleKoala by username, display_name, or user_id
+        const myUser = draftInfo.users.find(u => 
+          (u.username && u.username.toLowerCase() === preferredUsername) ||
+          (u.display_name && u.display_name.toLowerCase().includes(preferredUsername)) ||
+          u.is_owner
+        ) || draftInfo.users.find(u => u.user_id === draftInfo.user_id);
 
-      if (myUser && draftInfo.draft_order[myUser.user_id]) {
-        const mySlot = Number(draftInfo.draft_order[myUser.user_id]);
-        setSelectedSlot(mySlot);
+        if (myUser && draftInfo.draft_order[myUser.user_id]) {
+          const mySlot = Number(draftInfo.draft_order[myUser.user_id]);
+          setSelectedSlot(mySlot);
+        }
       }
     }
   }, [draftInfo]);

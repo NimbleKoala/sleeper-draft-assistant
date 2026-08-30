@@ -1,22 +1,41 @@
 import React, { useState, useMemo, memo } from 'react';
-import { Activity, Clock, Grid, List, Radio } from 'lucide-react';
+import { Activity, Clock, Grid, List, Radio, X } from 'lucide-react';
 import { getTeamStyle } from '../utils/fantasyUtils';
 import EmptyState from './common/EmptyState';
 import { DraftBoardSkeleton } from './common/Skeleton';
 
-const DraftBoard = memo(function DraftBoard({ picks = [], draftInfo, isLoading = false, onConnectClick }) {
+const DraftBoard = memo(function DraftBoard({
+  picks = [],
+  draftInfo,
+  isLoading = false,
+  onConnectClick,
+  onRemovePick
+}) {
   const [boardView, setBoardView] = useState('grid'); // 'grid' | 'stream'
 
   const teamsCount = draftInfo?.settings?.teams || 12;
   const totalRounds = draftInfo?.settings?.rounds || 15;
   const totalPicks = teamsCount * totalRounds;
+  const isSnake = draftInfo?.type !== 'linear';
 
   // Calculate current pick number
   const currentPickNo = picks.length + 1;
   const currentRound = Math.ceil(currentPickNo / teamsCount);
   const currentPickInRound = ((currentPickNo - 1) % teamsCount) + 1;
 
-  // ALWAYS call useMemo at the top level to adhere strictly to React Rules of Hooks
+  // Map users/display names by slot
+  const teamNamesBySlot = useMemo(() => {
+    const map = {};
+    if (draftInfo?.users && draftInfo?.draft_order) {
+      draftInfo.users.forEach((u) => {
+        const slot = draftInfo.draft_order[u.user_id];
+        if (slot) map[slot] = u.display_name;
+      });
+    }
+    return map;
+  }, [draftInfo]);
+
+  // Build grid matrix
   const gridMatrix = useMemo(() => {
     if (!draftInfo) return [];
 
@@ -25,7 +44,7 @@ const DraftBoard = memo(function DraftBoard({ picks = [], draftInfo, isLoading =
       const roundPicks = [];
       for (let slot = 1; slot <= teamsCount; slot++) {
         // Snake draft logic: odd rounds left-to-right, even rounds right-to-left
-        const isReversed = r % 2 === 0;
+        const isReversed = isSnake && r % 2 === 0;
         const pickIndexInRound = isReversed ? (teamsCount - slot) : (slot - 1);
         const pickNo = (r - 1) * teamsCount + pickIndexInRound + 1;
         const pickObj = picks.find(p => p.pick_no === pickNo);
@@ -40,7 +59,7 @@ const DraftBoard = memo(function DraftBoard({ picks = [], draftInfo, isLoading =
       matrix.push({ round: r, roundPicks });
     }
     return matrix;
-  }, [picks, draftInfo, teamsCount, totalRounds]);
+  }, [picks, draftInfo, teamsCount, totalRounds, isSnake]);
 
   // Reverse picks for recent stream
   const recentPicks = useMemo(() => {
@@ -64,7 +83,7 @@ const DraftBoard = memo(function DraftBoard({ picks = [], draftInfo, isLoading =
         <EmptyState
           icon={Radio}
           title="No Live Draft Connected"
-          description="Connect to your Sleeper draft to view the real-time pick grid and draft stream, or launch Mock Draft mode."
+          description="Connect to your Sleeper draft, start a Manual Draft, or launch Mock Draft mode."
           actionLabel={onConnectClick ? "Connect Draft" : undefined}
           onAction={onConnectClick}
         />
@@ -81,9 +100,18 @@ const DraftBoard = memo(function DraftBoard({ picks = [], draftInfo, isLoading =
             <Activity className="w-4.5 h-4.5 text-emerald-400" aria-hidden="true" />
           </div>
           <div>
-            <h2 id="draft-board-heading" className="font-extrabold text-white text-base">Live Draft Board</h2>
+            <div className="flex items-center gap-2">
+              <h2 id="draft-board-heading" className="font-extrabold text-white text-base">
+                Live Draft Board
+              </h2>
+              {draftInfo.isManualDraft && (
+                <span className="text-[9px] font-mono font-bold px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                  Manual
+                </span>
+              )}
+            </div>
             <p className="text-[11px] text-slate-400">
-              {picks.length} of {totalPicks} picks logged
+              {picks.length} of {totalPicks} picks logged • <span className="capitalize">{draftInfo.type || 'snake'}</span>
             </p>
           </div>
         </div>
@@ -117,8 +145,8 @@ const DraftBoard = memo(function DraftBoard({ picks = [], draftInfo, isLoading =
         </div>
       </div>
 
-      {/* Current Pick Indicator Banner */}
-      {currentPickNo <= totalPicks && draftInfo.status === 'drafting' && (
+      {/* Current Pick Indicator Banner (when not in manual mode or alongside) */}
+      {!draftInfo.isManualDraft && currentPickNo <= totalPicks && draftInfo.status === 'drafting' && (
         <div className="mb-4 p-3 rounded-xl bg-emerald-950/60 border border-emerald-500/40 flex items-center justify-between gap-3 text-xs shadow-md" role="region" aria-label="On The Clock Status">
           <div className="flex items-center gap-2.5">
             <Clock className="w-4 h-4 text-emerald-400 animate-pulse shrink-0" aria-hidden="true" />
@@ -138,16 +166,23 @@ const DraftBoard = memo(function DraftBoard({ picks = [], draftInfo, isLoading =
       {/* View Content */}
       {boardView === 'grid' ? (
         /* Full Grid Draft Board */
-        <div className="overflow-x-auto rounded-xl border border-slate-800 bg-slate-950/80 p-2 max-h-[420px] overflow-y-auto scrollbar-thin" role="region" aria-label="Draft Grid Matrix">
-          <div className="min-w-[700px]">
+        <div className="overflow-x-auto rounded-xl border border-slate-800 bg-slate-950/80 p-2 max-h-[440px] overflow-y-auto scrollbar-thin" role="region" aria-label="Draft Grid Matrix">
+          <div className="min-w-[720px]">
             {/* Team Headers */}
             <div className="grid gap-1 mb-1.5" style={{ gridTemplateColumns: `40px repeat(${teamsCount}, minmax(0, 1fr))` }}>
               <div className="text-[10px] font-mono font-bold text-slate-500 text-center py-1">Rd</div>
-              {Array.from({ length: teamsCount }, (_, i) => i + 1).map(slot => (
-                <div key={slot} className="text-[10px] font-bold text-slate-300 text-center py-1 bg-slate-900/80 rounded border border-slate-800">
-                  Slot {slot}
-                </div>
-              ))}
+              {Array.from({ length: teamsCount }, (_, i) => i + 1).map(slot => {
+                const teamName = teamNamesBySlot[slot];
+                return (
+                  <div
+                    key={slot}
+                    title={teamName || `Slot ${slot}`}
+                    className="text-[10px] font-bold text-slate-300 text-center py-1 px-0.5 bg-slate-900/80 rounded border border-slate-800 truncate"
+                  >
+                    {teamName ? teamName.substring(0, 8) : `Slot ${slot}`}
+                  </div>
+                );
+              })}
             </div>
 
             {/* Rounds Rows */}
@@ -165,7 +200,7 @@ const DraftBoard = memo(function DraftBoard({ picks = [], draftInfo, isLoading =
                   return (
                     <div
                       key={slot}
-                      className={`p-1.5 rounded border text-[10px] flex flex-col justify-between h-14 transition ${
+                      className={`p-1.5 rounded border text-[10px] flex flex-col justify-between h-14 transition relative group ${
                         isCurrent
                           ? 'border-emerald-400 bg-emerald-950/60 shadow-md shadow-emerald-500/20 animate-pulse'
                           : pickObj
@@ -184,6 +219,19 @@ const DraftBoard = memo(function DraftBoard({ picks = [], draftInfo, isLoading =
                         </div>
                       ) : (
                         <div className="text-[9px] text-slate-700 text-center">Empty</div>
+                      )}
+
+                      {/* Remove pick button for manual drafts */}
+                      {draftInfo.isManualDraft && pickObj && onRemovePick && (
+                        <button
+                          type="button"
+                          onClick={() => onRemovePick(pickNo)}
+                          aria-label={`Remove pick #${pickNo}`}
+                          className="absolute -top-1 -right-1 w-4 h-4 bg-rose-600 hover:bg-rose-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition shadow-sm z-10"
+                          title="Remove pick"
+                        >
+                          <X className="w-2.5 h-2.5" />
+                        </button>
                       )}
                     </div>
                   );
@@ -211,23 +259,23 @@ const DraftBoard = memo(function DraftBoard({ picks = [], draftInfo, isLoading =
                 return (
                   <li
                     key={pNo}
-                    className="p-2.5 rounded-xl bg-slate-950/80 border border-slate-800 flex items-center justify-between gap-3 text-xs hover:border-slate-700 transition"
+                    className="p-2.5 rounded-xl bg-slate-950/80 border border-slate-800 flex items-center justify-between gap-3 text-xs hover:border-slate-700 transition relative group"
                   >
                     {/* Pick Info */}
-                    <div className="flex items-center gap-3">
-                      <div className="w-14 text-center font-mono font-extrabold text-slate-300 bg-slate-900 py-1 rounded-lg border border-slate-800">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-14 text-center font-mono font-extrabold text-slate-300 bg-slate-900 py-1 rounded-lg border border-slate-800 shrink-0">
                         {round}.{pickInRound < 10 ? `0${pickInRound}` : pickInRound}
                       </div>
-                      <div>
-                        <div className="font-bold text-white flex items-center gap-2">
+                      <div className="min-w-0">
+                        <div className="font-bold text-white flex items-center gap-2 truncate">
                           <span>{playerMeta.first_name} {playerMeta.last_name}</span>
                           {playerMeta.position && (
-                            <span className={`badge-pos badge-pos-${playerMeta.position}`}>
+                            <span className={`badge-pos badge-pos-${playerMeta.position} shrink-0`}>
                               {playerMeta.position}
                             </span>
                           )}
                         </div>
-                        <div className="text-[11px] text-slate-400 mt-0.5">
+                        <div className="text-[11px] text-slate-400 mt-0.5 truncate">
                           Picked by{' '}
                           <span className="text-blue-300 font-semibold">
                             {pick.picked_by_name || `Team ${pick.roster_id}`}
@@ -236,8 +284,8 @@ const DraftBoard = memo(function DraftBoard({ picks = [], draftInfo, isLoading =
                       </div>
                     </div>
 
-                    {/* Team Chip & Pick # */}
-                    <div className="flex items-center gap-2">
+                    {/* Team Chip, Pick #, & Remove button */}
+                    <div className="flex items-center gap-2 shrink-0">
                       {playerMeta.team && (
                         <span
                           className="text-[10px] font-mono font-extrabold px-2 py-0.5 rounded border"
@@ -253,6 +301,16 @@ const DraftBoard = memo(function DraftBoard({ picks = [], draftInfo, isLoading =
                       <span className="font-mono text-slate-500 text-[11px] bg-slate-900 px-2 py-0.5 rounded border border-slate-800">
                         #{pNo}
                       </span>
+                      {draftInfo.isManualDraft && onRemovePick && (
+                        <button
+                          type="button"
+                          onClick={() => onRemovePick(pNo)}
+                          className="text-slate-500 hover:text-rose-400 p-1 rounded transition opacity-0 group-hover:opacity-100"
+                          title={`Remove pick #${pNo}`}
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      )}
                     </div>
                   </li>
                 );

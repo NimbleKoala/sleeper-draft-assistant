@@ -4,8 +4,17 @@ import BestAvailable from './components/BestAvailable';
 import DraftBoard from './components/DraftBoard';
 import MyRosterTracker from './components/MyRosterTracker';
 import DraftConnectModal, { saveRecentDraft, PREFERRED_USERNAME } from './components/DraftConnectModal';
+import ManualDraftControls from './components/ManualDraftControls';
+import ManualDraftSettingsModal from './components/ManualDraftSettingsModal';
+import ExportDraftModal from './components/ExportDraftModal';
 import RankingsManagerModal from './components/RankingsManagerModal';
 import { AlertCircle, CheckCircle, Info } from 'lucide-react';
+import {
+  getStoredManualDraft,
+  saveStoredManualDraft,
+  clearStoredManualDraft,
+  calculatePickDetails
+} from './utils/manualDraftUtils';
 
 const SELECTED_RANKINGS_KEY = 'sleeper_selected_rankings';
 
@@ -59,6 +68,8 @@ export default function App() {
   // Modals
   const [isConnectModalOpen, setIsConnectModalOpen] = useState(false);
   const [isRankingsModalOpen, setIsRankingsModalOpen] = useState(false);
+  const [isManualSettingsModalOpen, setIsManualSettingsModalOpen] = useState(false);
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [notification, setNotification] = useState(null);
 
   const showNotification = (msg, type = 'info') => {
@@ -149,7 +160,7 @@ export default function App() {
 
   // Sync / Refresh Picks from Sleeper API (Supports Multi-Rankings)
   const handleRefreshPicks = useCallback(async (currentDraft = draftInfo, ids = selectedRankingIds) => {
-    if (!currentDraft || !currentDraft.draft_id || isDemoMode) return;
+    if (!currentDraft || !currentDraft.draft_id || isDemoMode || currentDraft.isManualDraft) return;
 
     setIsRefreshing(true);
     try {
@@ -203,7 +214,7 @@ export default function App() {
     }
 
     await loadActiveDatasets(nextIds);
-    if (draftInfo && !isDemoMode) {
+    if (draftInfo && !isDemoMode && !draftInfo.isManualDraft) {
       handleRefreshPicks(draftInfo, nextIds);
     }
   };
@@ -218,7 +229,7 @@ export default function App() {
     });
   }, []);
 
-  // Connect to a new Draft
+  // Connect to a Sleeper Draft
   const handleSelectDraft = async (selectedDraft) => {
     setIsDemoMode(false);
     showNotification(`Connecting to draft...`, 'info');
@@ -264,7 +275,147 @@ export default function App() {
     showNotification('Demo Mock Draft Mode started!', 'info');
   };
 
-  // Manual drafted toggle
+  // Start Manual Draft Session
+  const handleStartManualDraft = useCallback((newDraft) => {
+    setIsDemoMode(false);
+    setDraftInfo(newDraft);
+    setPicks([]);
+    setManualDraftedIds(new Set());
+    saveStoredManualDraft({ draftInfo: newDraft, picks: [] });
+    saveRecentDraft(newDraft);
+    showNotification(`Started manual draft: ${newDraft.metadata?.name || 'Manual League Draft'}`, 'success');
+  }, []);
+
+  // Resume Saved Manual Draft Session
+  const handleResumeManualDraft = useCallback((savedState) => {
+    if (!savedState || !savedState.draftInfo) return;
+    setIsDemoMode(false);
+    setDraftInfo(savedState.draftInfo);
+    setPicks(savedState.picks || []);
+    setManualDraftedIds(new Set());
+    showNotification(`Resumed manual draft: ${savedState.draftInfo.metadata?.name || 'Manual Draft'} (${savedState.picks?.length || 0} picks)`, 'info');
+  }, []);
+
+  // Make a Pick in Manual Draft
+  const handleMakeManualPick = useCallback((player) => {
+    if (!player || !draftInfo) return;
+    const teamsCount = draftInfo.settings?.teams || 12;
+    const totalRounds = draftInfo.settings?.rounds || 15;
+    const totalPicks = teamsCount * totalRounds;
+    const draftType = draftInfo.type || 'snake';
+
+    if (picks.length >= totalPicks) {
+      showNotification('Draft is already complete! All picks logged.', 'info');
+      return;
+    }
+
+    const nextPickNo = picks.length + 1;
+    const pickDetails = calculatePickDetails(nextPickNo, teamsCount, draftType);
+
+    // Find team user on clock
+    const teamUser = draftInfo.users?.find(u => draftInfo.draft_order?.[u.user_id] === pickDetails.slot) ||
+                     draftInfo.users?.[pickDetails.slot - 1];
+    const teamName = teamUser?.display_name || `Team ${pickDetails.slot}`;
+
+    // Split player name
+    const nameParts = (player.player || '').trim().split(/\s+/);
+    const firstName = nameParts[0] || '';
+    const lastName = nameParts.slice(1).join(' ') || '';
+
+    const newPick = {
+      pick_no: nextPickNo,
+      round: pickDetails.round,
+      draft_slot: pickDetails.slot,
+      roster_id: pickDetails.slot,
+      picked_by: teamUser?.user_id || `manual_user_${pickDetails.slot}`,
+      picked_by_name: teamName,
+      player_id: player.sleeperId || `manual_${player.rank}_${player.normalizedName || Date.now()}`,
+      metadata: {
+        first_name: firstName,
+        last_name: lastName,
+        position: player.position,
+        team: player.team
+      }
+    };
+
+    const updatedPicks = [...picks, newPick];
+    setPicks(updatedPicks);
+
+    if (draftInfo.isManualDraft) {
+      saveStoredManualDraft({ draftInfo, picks: updatedPicks });
+    }
+
+    showNotification(`Drafted ${player.player} to ${teamName} (Pick #${nextPickNo})`, 'success');
+  }, [draftInfo, picks]);
+
+  // Undo Last Pick in Manual Draft
+  const handleUndoLastPick = useCallback(() => {
+    if (picks.length === 0) return;
+    const lastPick = picks[picks.length - 1];
+    const updatedPicks = picks.slice(0, picks.length - 1);
+    setPicks(updatedPicks);
+
+    if (draftInfo?.isManualDraft) {
+      saveStoredManualDraft({ draftInfo, picks: updatedPicks });
+    }
+
+    const playerName = `${lastPick.metadata?.first_name || ''} ${lastPick.metadata?.last_name || ''}`.trim() || 'Player';
+    showNotification(`Undid Pick #${lastPick.pick_no} (${playerName})`, 'info');
+  }, [draftInfo, picks]);
+
+  // Remove Specific Pick in Manual Draft
+  const handleRemoveSpecificPick = useCallback((pickNo) => {
+    const pickToRemove = picks.find(p => p.pick_no === pickNo);
+    if (!pickToRemove) return;
+
+    const remaining = picks.filter(p => p.pick_no !== pickNo);
+    const teamsCount = draftInfo?.settings?.teams || 12;
+    const draftType = draftInfo?.type || 'snake';
+
+    const reindexed = remaining.map((p, idx) => {
+      const newPickNo = idx + 1;
+      const details = calculatePickDetails(newPickNo, teamsCount, draftType);
+      const teamUser = draftInfo?.users?.find(u => draftInfo.draft_order?.[u.user_id] === details.slot) ||
+                       draftInfo?.users?.[details.slot - 1];
+
+      return {
+        ...p,
+        pick_no: newPickNo,
+        round: details.round,
+        draft_slot: details.slot,
+        roster_id: details.slot,
+        picked_by: teamUser?.user_id || `manual_user_${details.slot}`,
+        picked_by_name: teamUser?.display_name || `Team ${details.slot}`
+      };
+    });
+
+    setPicks(reindexed);
+    if (draftInfo?.isManualDraft) {
+      saveStoredManualDraft({ draftInfo, picks: reindexed });
+    }
+
+    showNotification(`Removed Pick #${pickNo}`, 'info');
+  }, [draftInfo, picks]);
+
+  // Reset All Picks in Manual Draft
+  const handleResetManualDraft = useCallback(() => {
+    setPicks([]);
+    if (draftInfo?.isManualDraft) {
+      saveStoredManualDraft({ draftInfo, picks: [] });
+    }
+    showNotification('Draft picks reset successfully', 'info');
+  }, [draftInfo]);
+
+  // Save / Update Manual Draft Settings
+  const handleSaveManualSettings = useCallback((updatedDraftInfo) => {
+    setDraftInfo(updatedDraftInfo);
+    if (updatedDraftInfo.isManualDraft) {
+      saveStoredManualDraft({ draftInfo: updatedDraftInfo, picks });
+    }
+    showNotification('Manual draft settings updated', 'success');
+  }, [picks]);
+
+  // Manual drafted toggle (general wishlist / manual override)
   const handleToggleManualDrafted = useCallback((rank) => {
     setManualDraftedIds(prev => {
       const next = new Set(prev);
@@ -312,7 +463,7 @@ export default function App() {
     setSelectedRankingIds(nextIds);
 
     await loadActiveDatasets(nextIds);
-    if (draftInfo && !isDemoMode) {
+    if (draftInfo && !isDemoMode && !draftInfo.isManualDraft) {
       handleRefreshPicks(draftInfo, nextIds);
     }
   };
@@ -330,10 +481,12 @@ export default function App() {
     setSelectedRankingIds(nextIds);
 
     await loadActiveDatasets(nextIds);
-    if (draftInfo && !isDemoMode) {
+    if (draftInfo && !isDemoMode && !draftInfo.isManualDraft) {
       handleRefreshPicks(draftInfo, nextIds);
     }
   };
+
+  const isManualDraft = !!draftInfo?.isManualDraft;
 
   return (
     <div className="min-h-screen p-3 md:p-8 max-w-[1500px] mx-auto">
@@ -371,8 +524,24 @@ export default function App() {
         onOpenConnectModal={() => setIsConnectModalOpen(true)}
         onOpenRankingsModal={() => setIsRankingsModalOpen(true)}
         onStartDemoMode={handleStartDemoMode}
+        onOpenManualModal={() => setIsManualSettingsModalOpen(true)}
         isDemoMode={isDemoMode}
       />
+
+      {/* Manual Draft Controls Panel (Active when in Manual Draft Mode) */}
+      {isManualDraft && (
+        <ManualDraftControls
+          draftInfo={draftInfo}
+          picks={picks}
+          rankings={rankings}
+          manualDraftedIds={manualDraftedIds}
+          onMakePick={handleMakeManualPick}
+          onUndoLastPick={handleUndoLastPick}
+          onResetDraft={handleResetManualDraft}
+          onOpenSettings={() => setIsManualSettingsModalOpen(true)}
+          onOpenExport={() => setIsExportModalOpen(true)}
+        />
+      )}
 
       {/* Primary Dashboard Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
@@ -390,6 +559,10 @@ export default function App() {
             starredIds={starredIds}
             onToggleStar={handleToggleStar}
             isLoading={isLoadingRankings}
+            isManualDraft={isManualDraft}
+            picks={picks}
+            onDraftPlayer={handleMakeManualPick}
+            onRemovePick={handleRemoveSpecificPick}
           />
         </div>
 
@@ -406,6 +579,7 @@ export default function App() {
             draftInfo={draftInfo}
             picks={picks}
             onConnectClick={() => setIsConnectModalOpen(true)}
+            onRemovePick={handleRemoveSpecificPick}
           />
         </div>
       </div>
@@ -415,6 +589,22 @@ export default function App() {
         isOpen={isConnectModalOpen}
         onClose={() => setIsConnectModalOpen(false)}
         onSelectDraft={handleSelectDraft}
+        onStartManualDraft={handleStartManualDraft}
+        onResumeManualDraft={handleResumeManualDraft}
+      />
+
+      <ManualDraftSettingsModal
+        isOpen={isManualSettingsModalOpen}
+        onClose={() => setIsManualSettingsModalOpen(false)}
+        initialDraftInfo={isManualDraft ? draftInfo : null}
+        onSaveDraft={isManualDraft ? handleSaveManualSettings : handleStartManualDraft}
+      />
+
+      <ExportDraftModal
+        isOpen={isExportModalOpen}
+        onClose={() => setIsExportModalOpen(false)}
+        draftInfo={draftInfo}
+        picks={picks}
       />
 
       <RankingsManagerModal
