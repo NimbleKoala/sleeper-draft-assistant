@@ -36,20 +36,27 @@ const MyRosterTracker = memo(function MyRosterTracker({ draftInfo, picks = [], r
     return list.sort((a, b) => a.slot - b.slot);
   }, [draftInfo]);
 
-  // Automatically detect & jump to NimbleKoala's draft slot on connect
+  // Automatically detect & jump to user's draft slot on connect
   useEffect(() => {
-    if (draftInfo && draftInfo.users && draftInfo.draft_order) {
-      const preferredUsername = (getStoredUsername() || PREFERRED_USERNAME).toLowerCase();
+    if (draftInfo) {
+      if (draftInfo.myDraftSlot) {
+        setSelectedSlot(Number(draftInfo.myDraftSlot));
+        return;
+      }
+      if (draftInfo.users && draftInfo.draft_order) {
+        const preferredUsername = (getStoredUsername() || PREFERRED_USERNAME).toLowerCase();
 
-      // Find user matching NimbleKoala by username, display_name, or user_id
-      const myUser = draftInfo.users.find(u => 
-        (u.username && u.username.toLowerCase() === preferredUsername) ||
-        (u.display_name && u.display_name.toLowerCase() === preferredUsername)
-      ) || draftInfo.users.find(u => u.user_id === draftInfo.user_id);
+        // Find user matching NimbleKoala by username, display_name, or user_id
+        const myUser = draftInfo.users.find(u => 
+          (u.username && u.username.toLowerCase() === preferredUsername) ||
+          (u.display_name && u.display_name.toLowerCase().includes(preferredUsername)) ||
+          u.is_owner
+        ) || draftInfo.users.find(u => u.user_id === draftInfo.user_id);
 
-      if (myUser && draftInfo.draft_order[myUser.user_id]) {
-        const mySlot = Number(draftInfo.draft_order[myUser.user_id]);
-        setSelectedSlot(mySlot);
+        if (myUser && draftInfo.draft_order[myUser.user_id]) {
+          const mySlot = Number(draftInfo.draft_order[myUser.user_id]);
+          setSelectedSlot(mySlot);
+        }
       }
     }
   }, [draftInfo]);
@@ -64,15 +71,12 @@ const MyRosterTracker = memo(function MyRosterTracker({ draftInfo, picks = [], r
     if (!picks || !selectedRoster) return [];
 
     return picks.filter(p => {
-      // 1. Match by picked_by user_id if present
       if (selectedRoster.userId && p.picked_by) {
         if (p.picked_by === selectedRoster.userId) return true;
       }
-      // 2. Match by draft_slot
       if (p.draft_slot !== undefined && p.draft_slot !== null) {
         if (Number(p.draft_slot) === selectedRoster.slot) return true;
       }
-      // 3. Fallback match by roster_id if draft_slot is missing
       if (p.roster_id !== undefined && p.roster_id !== null) {
         if (Number(p.roster_id) === selectedRoster.rosterId) return true;
       }
@@ -137,7 +141,7 @@ const MyRosterTracker = memo(function MyRosterTracker({ draftInfo, picks = [], r
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 border-b border-slate-800 pb-3">
         <div className="flex items-center gap-2.5">
           <div className="w-8 h-8 rounded-lg bg-blue-500/10 border border-blue-500/30 flex items-center justify-center shrink-0">
-            <UserCheck className="w-4.5 h-4.5 text-blue-400" />
+            <UserCheck className="w-4.5 h-4.5 text-blue-400" aria-hidden="true" />
           </div>
           <div>
             <h3 id="roster-tracker-heading" className="font-extrabold text-white text-base">Roster Tracker</h3>
@@ -168,12 +172,12 @@ const MyRosterTracker = memo(function MyRosterTracker({ draftInfo, picks = [], r
       {/* Positional Progress Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 mb-4" role="group" aria-label="Positional Roster Progress">
         {[
-          { pos: 'QB', count: posCounts.QB, target: posTargets.QB, color: 'bg-emerald-500', glow: 'shadow-emerald-500/20' },
-          { pos: 'RB', count: posCounts.RB, target: posTargets.RB, color: 'bg-blue-500', glow: 'shadow-blue-500/20' },
-          { pos: 'WR', count: posCounts.WR, target: posTargets.WR, color: 'bg-pink-500', glow: 'shadow-pink-500/20' },
-          { pos: 'TE', count: posCounts.TE, target: posTargets.TE, color: 'bg-amber-500', glow: 'shadow-amber-500/20' },
-          { pos: 'K',  count: posCounts.K,  target: posTargets.K,  color: 'bg-purple-500', glow: 'shadow-purple-500/20' },
-          { pos: 'DEF',count: posCounts.DEF,target: posTargets.DEF,color: 'bg-cyan-500', glow: 'shadow-cyan-500/20' }
+          { pos: 'QB', count: posCounts.QB, target: posTargets.QB, color: 'bg-emerald-500' },
+          { pos: 'RB', count: posCounts.RB, target: posTargets.RB, color: 'bg-blue-500' },
+          { pos: 'WR', count: posCounts.WR, target: posTargets.WR, color: 'bg-pink-500' },
+          { pos: 'TE', count: posCounts.TE, target: posTargets.TE, color: 'bg-amber-500' },
+          { pos: 'K',  count: posCounts.K,  target: posTargets.K,  color: 'bg-purple-500' },
+          { pos: 'DEF',count: posCounts.DEF,target: posTargets.DEF,color: 'bg-cyan-500' }
         ].map(item => {
           const pct = Math.min(100, Math.round((item.count / item.target) * 100));
           const isComplete = item.count >= item.target;
@@ -182,7 +186,7 @@ const MyRosterTracker = memo(function MyRosterTracker({ draftInfo, picks = [], r
             <div
               key={item.pos}
               className={`p-2.5 rounded-xl bg-slate-950/70 border border-slate-800/90 transition ${
-                isComplete ? 'border-slate-700' : ''
+                isComplete ? 'border-emerald-500/40 bg-emerald-950/20' : ''
               }`}
             >
               <div className="flex items-center justify-between text-xs mb-1.5">
@@ -202,7 +206,7 @@ const MyRosterTracker = memo(function MyRosterTracker({ draftInfo, picks = [], r
                 aria-label={`${item.pos} roster target progress: ${item.count} of ${item.target}`}
               >
                 <div
-                  className={`h-full rounded-full transition-all duration-500 ${item.color} ${item.glow}`}
+                  className={`h-full rounded-full transition-all duration-500 ${item.color}`}
                   style={{ width: `${pct}%` }}
                 ></div>
               </div>
@@ -211,17 +215,17 @@ const MyRosterTracker = memo(function MyRosterTracker({ draftInfo, picks = [], r
         })}
       </div>
 
-      {/* AI Draft Recommendations Box */}
+      {/* Recommended Targets Box */}
       {draftRecommendations.recommendedPlayers.length > 0 && (
-        <div className="mb-4 p-3 rounded-xl bg-gradient-to-r from-blue-950/60 to-purple-950/60 border border-blue-500/30 text-xs shadow-lg" role="region" aria-label="Recommended Value Targets">
+        <div className="mb-4 p-3 rounded-xl bg-gradient-to-r from-blue-950/60 to-purple-950/60 border border-blue-500/30 text-xs shadow-md" role="region" aria-label="Recommended Value Targets">
           <div className="flex items-center gap-2 mb-2 text-blue-300 font-extrabold uppercase tracking-wider text-[11px]">
-            <Sparkles className="w-3.5 h-3.5 text-blue-400" />
+            <Sparkles className="w-3.5 h-3.5 text-blue-400" aria-hidden="true" />
             <span>Recommended Value Targets</span>
           </div>
 
           <div className="space-y-1.5">
             {draftRecommendations.recommendedPlayers.map(rec => (
-              <div key={rec.rank} className="flex items-center justify-between bg-slate-950/60 px-2.5 py-1.5 rounded-lg border border-slate-800/80">
+              <div key={rec.rank} className="flex items-center justify-between bg-slate-950/70 px-2.5 py-1.5 rounded-lg border border-slate-800/80">
                 <div className="flex items-center gap-2">
                   <span className="font-mono text-blue-400 font-extrabold text-[11px]">#{rec.rank}</span>
                   <span className={`badge-pos badge-pos-${rec.position} text-[10px]`}>{rec.position}</span>

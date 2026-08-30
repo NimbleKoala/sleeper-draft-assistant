@@ -1,5 +1,5 @@
 import React from 'react';
-import { Search, Grid, List, Sparkles, Star, Layers, X } from 'lucide-react';
+import { Search, Grid, List, Sparkles, Star, Layers, X, Filter } from 'lucide-react';
 
 export default function BestAvailableFilters({
   totalAvailableCount,
@@ -26,7 +26,7 @@ export default function BestAvailableFilters({
       {/* Top Header & Search Controls */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-3.5 mb-4 pb-4 border-b border-slate-800">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center shrink-0 shadow-lg shadow-amber-500/10">
+          <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center shrink-0 shadow-md shadow-amber-500/10">
             <Sparkles className="w-5 h-5 text-amber-400" aria-hidden="true" />
           </div>
           <div>
@@ -45,7 +45,7 @@ export default function BestAvailableFilters({
           </div>
         </div>
 
-        {/* Search & Controls */}
+        {/* Search & Action Controls */}
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
           <div className="relative flex-1 sm:w-60">
             <input
@@ -54,7 +54,7 @@ export default function BestAvailableFilters({
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               aria-label="Search players by name, team, or position"
-              className="input-text w-full pr-8 py-2 text-xs focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:outline-none"
+              className="input-text w-full pr-8 py-2 text-xs"
               style={{ paddingLeft: '2.6rem' }}
             />
             <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-2.5 pointer-events-none" aria-hidden="true" />
@@ -63,7 +63,7 @@ export default function BestAvailableFilters({
                 type="button"
                 onClick={() => setSearchQuery('')}
                 aria-label="Clear search input"
-                className="absolute right-2.5 top-2.5 text-slate-400 hover:text-white p-0.5 focus-visible:ring-2 focus-visible:ring-blue-500 rounded"
+                className="absolute right-2.5 top-2.5 text-slate-400 hover:text-white p-0.5 rounded transition"
               >
                 <X className="w-3.5 h-3.5" aria-hidden="true" />
               </button>
@@ -76,7 +76,7 @@ export default function BestAvailableFilters({
               onClick={() => setStarredOnly(!starredOnly)}
               aria-pressed={starredOnly}
               aria-label="Toggle target wishlist only filter"
-              className={`btn text-xs py-1.5 px-2.5 border transition focus-visible:ring-2 focus-visible:ring-amber-500 ${
+              className={`btn text-xs py-1.5 px-2.5 border transition ${
                 starredOnly
                   ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
                   : 'btn-secondary text-slate-400'
@@ -92,7 +92,7 @@ export default function BestAvailableFilters({
               onClick={() => setGroupByTiers(!groupByTiers)}
               aria-pressed={groupByTiers}
               aria-label="Toggle grouping by tier headers"
-              className={`btn text-xs py-1.5 px-2.5 border transition focus-visible:ring-2 focus-visible:ring-blue-500 ${
+              className={`btn text-xs py-1.5 px-2.5 border transition ${
                 groupByTiers
                   ? 'bg-blue-500/20 text-blue-300 border-blue-500/40'
                   : 'btn-secondary text-slate-400'
@@ -120,7 +120,7 @@ export default function BestAvailableFilters({
                 onClick={() => setViewMode('table')}
                 aria-pressed={viewMode === 'table'}
                 aria-label="Switch to Table View"
-                className={`p-1.5 rounded-lg text-xs transition focus-visible:ring-2 focus-visible:ring-blue-500 ${
+                className={`p-1.5 rounded-lg text-xs transition ${
                   viewMode === 'table' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-400 hover:text-white'
                 }`}
                 title="Table View"
@@ -132,7 +132,7 @@ export default function BestAvailableFilters({
                 onClick={() => setViewMode('cards')}
                 aria-pressed={viewMode === 'cards'}
                 aria-label="Switch to Cards View"
-                className={`p-1.5 rounded-lg text-xs transition focus-visible:ring-2 focus-visible:ring-blue-500 ${
+                className={`p-1.5 rounded-lg text-xs transition ${
                   viewMode === 'cards' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-400 hover:text-white'
                 }`}
                 title="Cards View"
@@ -158,9 +158,9 @@ export default function BestAvailableFilters({
               aria-selected={isActive}
               aria-label={`Filter by ${pos} position (${count} available)`}
               onClick={() => setSelectedPos(pos)}
-              className={`px-3 py-1.5 rounded-xl text-xs font-extrabold tracking-wide flex items-center gap-1.5 shrink-0 whitespace-nowrap transition active:scale-95 focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:outline-none ${
+              className={`px-3 py-1.5 rounded-xl text-xs font-extrabold tracking-wide flex items-center gap-1.5 shrink-0 whitespace-nowrap transition ${
                 isActive
-                  ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-500/25 border border-blue-400/50'
+                  ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-500/25 border border-blue-400/50'
                   : 'bg-slate-900/90 text-slate-400 hover:bg-slate-800 hover:text-white border border-slate-800'
               }`}
             >

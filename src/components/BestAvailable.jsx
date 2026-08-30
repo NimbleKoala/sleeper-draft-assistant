@@ -19,7 +19,11 @@ export default function BestAvailable({
   onToggleManualDrafted,
   starredIds = new Set(),
   onToggleStar,
-  isLoading = false
+  isLoading = false,
+  isManualDraft = false,
+  picks = [],
+  onDraftPlayer,
+  onRemovePick
 }) {
   const [selectedPos, setSelectedPos] = useState('ALL');
   const [searchQuery, setSearchQuery] = useState('');
@@ -55,6 +59,18 @@ export default function BestAvailable({
     return activeSortKey.rankingId || selectedRankingIds[0] || 'default';
   }, [activeSortKey, selectedRankingIds]);
 
+  // Build lookup map for picks (by normalized name and sleeper ID)
+  const picksMap = useMemo(() => {
+    const map = new Map();
+    picks.forEach(p => {
+      const meta = p.metadata || {};
+      const norm = (meta.first_name + ' ' + meta.last_name).toLowerCase().replace(/[^a-z0-9]/g, '');
+      if (norm) map.set(norm, p);
+      if (p.player_id) map.set(p.player_id, p);
+    });
+    return map;
+  }, [picks]);
+
   // Compute unified multi-ranking player list
   const combinedPlayerList = useMemo(() => {
     if (!rankings || rankings.length === 0) return [];
@@ -62,9 +78,14 @@ export default function BestAvailable({
     const playerMap = new Map();
 
     rankings.forEach(p => {
-      const key = p.normalizedName || p.player.toLowerCase();
+      const key = p.normalizedName || p.player.toLowerCase().replace(/[^a-z0-9]/g, '');
+      const pickObj = picksMap.get(key) || (p.sleeperId && picksMap.get(p.sleeperId)) || p.pickInfo;
+      const isDraftedInPicks = !!pickObj;
+
       playerMap.set(key, {
         ...p,
+        isPicked: p.isPicked || isDraftedInPicks,
+        pickInfo: pickObj || p.pickInfo,
         ranks: { [selectedRankingIds[0] || 'default']: p.rank }
       });
     });
@@ -74,12 +95,22 @@ export default function BestAvailable({
       if (!dataset || !dataset.rankingsWithDraftStatus) return;
 
       dataset.rankingsWithDraftStatus.forEach(p => {
-        const key = p.normalizedName || p.player.toLowerCase();
+        const key = p.normalizedName || p.player.toLowerCase().replace(/[^a-z0-9]/g, '');
+        const pickObj = picksMap.get(key) || (p.sleeperId && picksMap.get(p.sleeperId)) || p.pickInfo;
+        const isDraftedInPicks = !!pickObj;
+
         if (playerMap.has(key)) {
-          playerMap.get(key).ranks[id] = p.rank;
+          const existing = playerMap.get(key);
+          existing.ranks[id] = p.rank;
+          if (isDraftedInPicks && !existing.isPicked) {
+            existing.isPicked = true;
+            existing.pickInfo = pickObj;
+          }
         } else {
           playerMap.set(key, {
             ...p,
+            isPicked: p.isPicked || isDraftedInPicks,
+            pickInfo: pickObj || p.pickInfo,
             ranks: { [id]: p.rank }
           });
         }
@@ -100,7 +131,7 @@ export default function BestAvailable({
     });
 
     return list;
-  }, [rankings, activeDatasetsMap, selectedRankingIds, activeSortId, activeSortKey]);
+  }, [rankings, activeDatasetsMap, selectedRankingIds, activeSortId, activeSortKey, picksMap]);
 
   // Count available players by position
   const posCounts = useMemo(() => {
@@ -201,7 +232,7 @@ export default function BestAvailable({
           onAction={resetFilters}
         />
       ) : viewMode === 'table' ? (
-        <div className="overflow-x-auto rounded-2xl border border-slate-800 bg-slate-950/60 shadow-inner max-h-[650px] overflow-y-auto">
+        <div className="overflow-x-auto rounded-2xl border border-slate-800 bg-slate-950/70 shadow-inner max-h-[650px] overflow-y-auto">
           <table className="w-full text-left border-collapse min-w-[650px]">
             <BestAvailableTableHeader
               selectedRankingIds={selectedRankingIds}
@@ -230,7 +261,7 @@ export default function BestAvailable({
                     seenTiers.add(tierInfo.tier);
                     rows.push(
                       <tr key={`tier-${tierInfo.tier}`}>
-                        <td colSpan={6 + selectedRankingIds.length} className={`py-2 px-3 bg-gradient-to-r ${tierInfo.color} border-y text-xs font-extrabold uppercase tracking-wider`}>
+                        <td colSpan={6 + selectedRankingIds.length} className={`py-2 px-3 bg-gradient-to-r ${tierInfo.color} border-y text-xs font-mono font-extrabold uppercase tracking-wider`}>
                           <div className="flex items-center gap-2">
                             <Layers className="w-3.5 h-3.5" aria-hidden="true" />
                             <span>{tierInfo.label}</span>
@@ -250,8 +281,11 @@ export default function BestAvailable({
                       isStarred={isStarred}
                       isManual={isManual}
                       primaryRank={primaryRank}
+                      isManualDraft={isManualDraft}
                       onToggleStar={onToggleStar}
                       onToggleManualDrafted={onToggleManualDrafted}
+                      onDraftPlayer={onDraftPlayer}
+                      onRemovePick={onRemovePick}
                     />
                   );
                 });
@@ -281,8 +315,11 @@ export default function BestAvailable({
                 isStarred={isStarred}
                 isManual={isManual}
                 primaryRank={primaryRank}
+                isManualDraft={isManualDraft}
                 onToggleStar={onToggleStar}
                 onToggleManualDrafted={onToggleManualDrafted}
+                onDraftPlayer={onDraftPlayer}
+                onRemovePick={onRemovePick}
               />
             );
           })}

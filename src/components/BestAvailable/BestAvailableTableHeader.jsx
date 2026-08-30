@@ -10,7 +10,7 @@ export default function BestAvailableTableHeader({
 }) {
   return (
     <thead>
-      <tr className="bg-slate-900/90 border-b border-slate-800">
+      <tr className="bg-slate-900/95 border-b border-slate-800">
         <th className="text-center w-10 py-3" scope="col">Target</th>
 
         {/* Dynamically Render Header for Each Selected Ranking */}
@@ -23,9 +23,9 @@ export default function BestAvailableTableHeader({
               <button
                 type="button"
                 onClick={() => onSortChange && onSortChange(id)}
-                className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-lg text-xs font-extrabold transition focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:outline-none ${
+                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-mono font-extrabold transition ${
                   isCurrentSort
-                    ? 'bg-blue-600 text-white shadow-sm'
+                    ? 'bg-blue-600 text-white shadow-sm border border-blue-400/40'
                     : 'hover:bg-slate-800 text-slate-300'
                 }`}
                 title={`Click to sort by ${meta.name}`}
@@ -46,10 +46,10 @@ export default function BestAvailableTableHeader({
           );
         })}
 
-        <th className="py-3 px-3" scope="col">Player</th>
-        <th className="py-3 px-2" scope="col">Pos</th>
-        <th className="py-3 px-2" scope="col">Team</th>
-        <th className="hidden sm:table-cell py-3 px-3" scope="col">Status</th>
+        <th className="py-3 px-3 text-left" scope="col">Player</th>
+        <th className="py-3 px-2 text-center" scope="col">Pos</th>
+        <th className="py-3 px-2 text-center" scope="col">Team</th>
+        <th className="hidden sm:table-cell py-3 px-3 text-left" scope="col">Status</th>
         <th className="text-right py-3 px-3" scope="col">Action</th>
       </tr>
     </thead>

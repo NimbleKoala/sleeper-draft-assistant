@@ -81,7 +81,7 @@ export default function RankingsManagerModal({
           type="button"
           onClick={onClose}
           aria-label="Close rankings manager modal"
-          className="absolute top-4 right-4 sm:top-5 sm:right-5 text-slate-400 hover:text-white p-1.5 rounded-xl hover:bg-slate-800 transition focus-visible:ring-2 focus-visible:ring-blue-500"
+          className="absolute top-4 right-4 sm:top-5 sm:right-5 text-slate-400 hover:text-white p-1.5 rounded-xl hover:bg-slate-800 transition"
         >
           <X className="w-5 h-5" aria-hidden="true" />
         </button>
@@ -90,7 +90,7 @@ export default function RankingsManagerModal({
           <div className="w-8 h-8 rounded-lg bg-blue-500/10 border border-blue-500/30 flex items-center justify-center shrink-0">
             <Database className="w-4 h-4 text-blue-400" aria-hidden="true" />
           </div>
-          <h2 id="rankings-modal-title" className="text-lg sm:text-xl font-extrabold text-white">
+          <h2 id="rankings-modal-title" className="text-lg sm:text-xl font-extrabold text-white tracking-tight">
             Server Rankings & Multi-Comparison Manager
           </h2>
         </div>
@@ -107,9 +107,9 @@ export default function RankingsManagerModal({
             }`}
           >
             {message.type === 'success' ? (
-              <Check className="w-4 h-4 text-emerald-400 shrink-0" />
+              <Check className="w-4 h-4 text-emerald-400 shrink-0" aria-hidden="true" />
             ) : (
-              <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
+              <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" aria-hidden="true" />
             )}
             <span>{message.text}</span>
           </div>
@@ -119,9 +119,9 @@ export default function RankingsManagerModal({
         <div className="mb-6">
           <div className="flex items-center justify-between mb-3">
             <h3 className="font-bold text-white text-sm flex items-center gap-2">
-              <Layers className="w-4 h-4 text-indigo-400" /> Saved Datasets on Server
+              <Layers className="w-4 h-4 text-indigo-400" aria-hidden="true" /> Saved Datasets on Server
             </h3>
-            <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-slate-800 text-blue-300 border border-slate-700">
+            <span className="text-xs font-mono font-extrabold px-2.5 py-1 rounded-full bg-slate-800 text-blue-300 border border-slate-700">
               {selectedRankingIds.length} / 3 Active Selected
             </span>
           </div>
@@ -132,7 +132,7 @@ export default function RankingsManagerModal({
                 No saved rankings datasets found on server.
               </div>
             ) : (
-              savedRankings.map((dataset, idx) => {
+              savedRankings.map((dataset) => {
                 const isSelected = selectedRankingIds.includes(dataset.id);
                 const isPrimary = selectedRankingIds[0] === dataset.id;
                 const canSelectMore = isSelected || selectedRankingIds.length < 3;
@@ -152,29 +152,30 @@ export default function RankingsManagerModal({
                         checked={isSelected}
                         disabled={!canSelectMore && !isSelected}
                         onChange={() => onToggleSelectRanking(dataset.id)}
-                        className="w-4 h-4 rounded border-slate-700 text-blue-500 focus:ring-blue-500 bg-slate-900 cursor-pointer disabled:opacity-30"
+                        className="custom-checkbox"
+                        aria-label={`Select ${dataset.name}`}
                       />
                       <div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <span className="font-bold text-sm text-white">
                             {dataset.name}
                           </span>
                           {dataset.isDefault ? (
-                            <span className="text-[10px] uppercase tracking-wider font-extrabold px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                            <span className="text-[10px] font-mono uppercase tracking-wider font-extrabold px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
                               Default PPR
                             </span>
                           ) : (dataset.isPreset || dataset.id === 'nffc_adp') ? (
-                            <span className="text-[10px] uppercase tracking-wider font-extrabold px-1.5 py-0.5 rounded bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
+                            <span className="text-[10px] font-mono uppercase tracking-wider font-extrabold px-1.5 py-0.5 rounded bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
                               Included
                             </span>
                           ) : null}
                           {isPrimary && (
-                            <span className="text-[10px] uppercase tracking-wider font-extrabold px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-300 border border-blue-500/30">
+                            <span className="text-[10px] font-mono uppercase tracking-wider font-extrabold px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-300 border border-blue-500/30">
                               Primary
                             </span>
                           )}
                         </div>
-                        <p className="text-[11px] text-slate-400">
+                        <p className="text-[11px] text-slate-400 mt-0.5">
                           {dataset.count} players • Updated {new Date(dataset.updatedAt).toLocaleDateString()}
                         </p>
                       </div>
@@ -183,12 +184,13 @@ export default function RankingsManagerModal({
                     <div className="flex items-center gap-2">
                       {!dataset.isDefault && !dataset.isPreset && dataset.id !== 'nffc_adp' && (
                         <button
+                          type="button"
                           onClick={() => handleDelete(dataset.id, dataset.name)}
                           disabled={loading}
                           className="p-1.5 text-slate-500 hover:text-rose-400 rounded-lg hover:bg-rose-500/10 transition"
                           title="Delete Dataset"
                         >
-                          <Trash2 className="w-4 h-4" />
+                          <Trash2 className="w-4 h-4" aria-hidden="true" />
                         </button>
                       )}
                     </div>
@@ -199,15 +201,15 @@ export default function RankingsManagerModal({
           </div>
         </div>
 
-        {/* Upload Form */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5">
+        {/* Upload & Paste Forms */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-2">
           <div className="p-4 rounded-xl bg-slate-950/80 border border-slate-800 flex flex-col justify-between">
             <div>
               <h3 className="font-bold text-white text-sm flex items-center gap-2 mb-1">
-                <Upload className="w-4 h-4 text-blue-400" /> Upload & Save CSV
+                <Upload className="w-4 h-4 text-blue-400" aria-hidden="true" /> Upload & Save CSV
               </h3>
               <p className="text-xs text-slate-400 mb-4">
-                Upload custom CSV to server: <code className="text-blue-300">Rank, Player, Team, Position</code>
+                Upload custom CSV to server: <code className="text-blue-300 font-mono">Rank, Player, Team, Position</code>
               </p>
             </div>
             <label className="btn btn-primary text-xs justify-center cursor-pointer">
@@ -225,7 +227,7 @@ export default function RankingsManagerModal({
           <form onSubmit={handlePasteSubmit} className="p-4 rounded-xl bg-slate-950/80 border border-slate-800 flex flex-col justify-between space-y-2">
             <div>
               <h3 className="font-bold text-white text-sm flex items-center gap-2 mb-1">
-                <FileText className="w-4 h-4 text-purple-400" /> Paste & Save CSV Text
+                <FileText className="w-4 h-4 text-purple-400" aria-hidden="true" /> Paste & Save CSV Text
               </h3>
               <input
                 type="text"

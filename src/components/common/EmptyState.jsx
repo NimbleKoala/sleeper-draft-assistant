@@ -14,12 +14,12 @@ export default function EmptyState({
       role="status"
       className="py-12 px-4 text-center flex flex-col items-center justify-center rounded-2xl border border-slate-800/80 bg-slate-950/40"
     >
-      <div className={`w-12 h-12 rounded-2xl flex items-center justify-center mb-3 shadow-lg border ${
+      <div className={`w-12 h-12 rounded-2xl flex items-center justify-center mb-3 shadow-md border ${
         variant === 'warning'
-          ? 'bg-amber-500/10 text-amber-400 border-amber-500/30 shadow-amber-500/10'
+          ? 'bg-amber-500/10 text-amber-400 border-amber-500/30'
           : variant === 'error'
-          ? 'bg-rose-500/10 text-rose-400 border-rose-500/30 shadow-rose-500/10'
-          : 'bg-blue-500/10 text-blue-400 border-blue-500/30 shadow-blue-500/10'
+          ? 'bg-rose-500/10 text-rose-400 border-rose-500/30'
+          : 'bg-blue-500/10 text-blue-400 border-blue-500/30'
       }`}>
         <Icon className="w-6 h-6" aria-hidden="true" />
       </div>
@@ -31,7 +31,7 @@ export default function EmptyState({
         <button
           type="button"
           onClick={onAction}
-          className="mt-4 btn btn-primary text-xs py-2 px-4 font-extrabold shadow-lg focus-visible:ring-2 focus-visible:ring-blue-500"
+          className="mt-4 btn btn-primary text-xs py-2 px-4 font-extrabold shadow-md"
         >
           {actionLabel}
         </button>
